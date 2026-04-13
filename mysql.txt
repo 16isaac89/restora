@@ -1,0 +1,2 @@
+/etc/my.cnf, /etc/mysql/my.cnf, ~/.my.cnf or ~/.mylogin.cnf.
+)TJa5.$+KHFd8jB-

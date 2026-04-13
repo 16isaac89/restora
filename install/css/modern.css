@@ -1,0 +1,371 @@
+/* Modern Installer Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #0ea5e9;
+    --primary-hover: #0284c7;
+    --bg-dark: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.7);
+    --text-white: #f8fafc;
+    --text-gray: #94a3b8;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', sans-serif;
+    background: #000 url('../img/premium_bg.png') no-repeat center center fixed;
+    background-size: cover;
+    color: var(--text-white);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ... existing styles ... */
+
+.security-disclaimer {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 40px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-gray);
+    backdrop-filter: blur(8px);
+    border-left: 4px solid var(--danger);
+}
+
+.security-disclaimer strong {
+    color: var(--text-white);
+    display: block;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* The "Hidden" Style for the Patreon Link */
+.x-support-pkg {
+    display: inline-flex;
+    position: relative;
+    padding: 8px 16px;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+    background-size: 200% auto;
+    color: white !important;
+    border-radius: 30px;
+    text-decoration: none !important;
+    font-weight: 700;
+    font-size: 14px;
+    margin-top: 20px;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+    animation: flowBg 4s ease infinite;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.x-support-pkg:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.6);
+}
+
+@keyframes flowBg {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+
+.main-container {
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.installer-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.installer-header {
+    padding: 40px 40px 20px;
+    text-align: center;
+}
+
+.installer-header img {
+    max-width: 220px;
+    margin-bottom: 20px;
+}
+
+.stepper {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px 30px;
+    position: relative;
+}
+
+.step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+}
+
+.step::before {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: var(--glass-border);
+    z-index: -1;
+}
+
+.step:last-child::before {
+    display: none;
+}
+
+.step-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-dark);
+    border: 2px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-gray);
+    transition: all 0.3s ease;
+}
+
+.step.active .step-circle {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+}
+
+.step.completed .step-circle {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.step-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-gray);
+}
+
+.step.active .step-label {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.installer-body {
+    padding: 0 40px 40px;
+}
+
+.installer-body h3 {
+    margin-top: 0;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.installer-body p {
+    color: var(--text-gray);
+    margin-bottom: 25px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.form-control {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: white;
+    font-family: inherit;
+    font-size: 15px;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 32px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    font-family: inherit;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.3);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-white);
+    margin-right: 15px;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.alert {
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.alert-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+}
+
+.alert-success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    color: #86efac;
+}
+
+.footer-links {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 13px;
+    color: var(--text-gray);
+}
+
+.footer-links a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+.patreon-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #FF424D;
+    color: white !important;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-top: 15px;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+.patreon-badge:hover {
+    transform: scale(1.05);
+    text-decoration: none !important;
+}
+
+/* Animations for steps */
+.fade-in {
+    animation: fadeInContent 0.4s ease-out forwards;
+}
+
+@keyframes fadeInContent {
+    from { opacity: 0; transform: translateX(10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.check-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 30px;
+}
+
+.check-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.check-item.error {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.status-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+
+.status-badge.ok {
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.status-badge.fail {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
