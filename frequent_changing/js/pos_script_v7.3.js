@@ -302,6 +302,56 @@
           return grouped_order;
       }
 
+      function getKotAggregationKey(item) {
+          return [
+              Number(item.kitchen_id || 0),
+              Number(item.previous_id || item.item_previous_id || item.food_menu_id || 0),
+              Number(item.food_menu_id || 0),
+              item.menu_name || "",
+              item.modifiers_id || "",
+              item.modifiers_name || "",
+              item.modifiers_price || "",
+              item.menu_combo_items || "",
+              item.menu_note || item.item_note || ""
+          ].join("||");
+      }
+
+      function getKotDisplayQtyForAggregation(item, kot_print) {
+          let qty = Number(item.qty || 0);
+          let tmp_qty = Number(item.tmp_qty || 0);
+          let is_print = Number(item.is_print || 0);
+          let print_count = Number(item.print_count || 0);
+          if (Number(kot_print) === 1) {
+              return qty;
+          }
+          if (tmp_qty > 0 && (is_print === 1 || qty > tmp_qty || print_count > 0)) {
+              return tmp_qty;
+          }
+          return qty;
+      }
+
+      function getAggregatedKotItems(order_items, kot_print) {
+          let grouped_items = {};
+          let grouped_order = [];
+          (order_items || []).forEach(function (item) {
+              let display_qty = getKotDisplayQtyForAggregation(item, kot_print);
+              if (display_qty <= 0) {
+                  return;
+              }
+              let group_key = getKotAggregationKey(item);
+              if (!grouped_items[group_key]) {
+                  grouped_items[group_key] = $.extend(true, {}, item);
+                  grouped_items[group_key].qty = display_qty;
+                  grouped_items[group_key].tmp_qty = display_qty;
+                  grouped_order.push(grouped_items[group_key]);
+                  return;
+              }
+              grouped_items[group_key].qty = Number(grouped_items[group_key].qty || 0) + display_qty;
+              grouped_items[group_key].tmp_qty = Number(grouped_items[group_key].tmp_qty || 0) + display_qty;
+          });
+          return grouped_order;
+      }
+
       function block_waiter_restricted_action() {
           toastr['error']("This action is not allowed for waiter accounts.", '');
           return false;
@@ -1380,6 +1430,7 @@
           
           for (let key in order_info) {
               let order = order_info[key];
+              let kot_items = getAggregatedKotItems(order.items, kot_print);
            
               let order_type = order.sale_type;
               let total_item_counter = 0;
@@ -1410,9 +1461,9 @@
                                   let total_kitchen_arr = [];
   
                                   $(".current_kot_items").empty();
-                                  for (let key in order.items) {
+                                  for (let key in kot_items) {
                                       //construct div
-                                      let this_item = order.items[key];
+                                      let this_item = kot_items[key];
                                       if(Number(this_item.kitchen_id)){
                                           if(getExistKitchen(this_item.kitchen_id,total_kitchen_arr)){
                                               total_kitchen_arr.push(this_item.kitchen_id);
@@ -1425,7 +1476,7 @@
                                   let is_item_available = 1;
                                   let item_html = ``;
                                   $(".kot_exist_checker").html('');
-                                  for (let key1 in order.items) {
+                                  for (let key1 in kot_items) {
                                     
                                     let is_first = Number($("#is_first").val());
                                         if(is_first == 1 &&  order.print_format!="No Print"){
@@ -1433,7 +1484,7 @@
                                         }else if(is_first==2){
                                             need_print_popup++;
                                         }
-                                      let this_item = order.items[key1];
+                                      let this_item = kot_items[key1];
                                       
                                       let updated_qty = Number(this_item.tmp_qty);
                                       if(kot_print==1){
@@ -2306,6 +2357,7 @@
     }
       function print_kot_print(order_info,kot_print) {
           let order = JSON.parse(order_info);
+          let kot_items = getAggregatedKotItems(order.items, kot_print);
           // console.log(order);
           let order_type = "";
           let total_item_counter = 0;
@@ -2359,9 +2411,9 @@
   
  
           $(".current_kot_items").empty();
-          for (let key in order.items) {
+          for (let key in kot_items) {
               //construct div
-              let this_item = order.items[key];
+              let this_item = kot_items[key];
               if(Number(this_item.kitchen_id)){
                   if(getExistKitchen(this_item.kitchen_id,total_kitchen_arr)){
                       total_kitchen_arr.push(this_item.kitchen_id);
@@ -2372,8 +2424,8 @@
           }
           $(".kot_exist_checker").html('');
      
-          for (let key in order.items) {
-              let this_item = order.items[key];
+          for (let key in kot_items) {
+              let this_item = kot_items[key];
               let if_kot_print = check_old_kot(order.sale_no,this_item.food_menu_id,kot_print,this_item.qty);
               let updated_qty = this_item.qty;
               if(!if_kot_print){
