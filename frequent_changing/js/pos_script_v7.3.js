@@ -77,6 +77,7 @@
       let inv_order_type = $("#inv_order_type").val();
       let inv_vat = $("#inv_vat").val();
       let inv_charge = $("#inv_charge").val();
+      let inv_rounding = "Rounding";
       let inv_dine = $("#inv_dine").val();
       let inv_take_away = $("#inv_take_away").val();
       let inv_delivery = $("#inv_delivery").val();
@@ -2690,6 +2691,16 @@
                                                 </th>
                                                 </tr>`;
         }
+        if(Number(order.rounding_amount_hidden)){
+            invoice_print+=`<tr>
+                                                <th  class="text_left">`+inv_rounding+`
+                                                  
+                                                </th>
+                                                <th class="text-right">
+                                                    `+getAmount(order.rounding_amount_hidden)+`
+                                                </th>
+                                                </tr>`;
+        }
 
  invoice_print+= ` </table>
  <hr style="border-bottom:1px solid black;margin: 0px;"> 
@@ -3020,6 +3031,16 @@
                                                 </th>
                                                 <th class="text-right">
                                                     `+getAmount(order.tips_amount_actual_charge)+`
+                                                </th>
+                                                </tr>`;
+        }
+        if(Number(order.rounding_amount_hidden)){
+            invoice_print+=`<tr>
+                                                <th  class="text_left">`+inv_rounding+`
+                                                  
+                                                </th>
+                                                <th class="text-right">
+                                                    `+getAmount(order.rounding_amount_hidden)+`
                                                 </th>
                                                 </tr>`;
         }
