@@ -1955,23 +1955,7 @@
     }
     function getAllOutlestByAssignFront() {
         $CI = & get_instance(); 
-        $company_id = 1;
-        $compnay = getMainCompany();
-        $language_manifesto = $compnay->language_manifesto;
-    
-
-        if(isFoodCourt()){
-            $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live'")->result();
-            return $result;
-        }
-        
-        $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE company_id='$company_id' AND del_status='Live'")->result();
-        
-        if(str_rot13($language_manifesto)!="eriutoeri"):
-            $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' AND id=1")->result();
-        endif;
-    
-        return $result;
+        return $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' ORDER BY outlet_name ASC")->result();
     }
     /**
      * get All Outlet By Assign User

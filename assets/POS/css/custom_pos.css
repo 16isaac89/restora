@@ -96,9 +96,7 @@
     list-style: none;
     padding: 0 0 14px 0;
     margin: 0;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    display: block;
 }
 
 #kot_item_list_holder .kot_tracking_row {
@@ -114,6 +112,7 @@
     gap: 10px;
     box-sizing: border-box;
     min-height: 100%;
+    margin-bottom: 10px;
 }
 
 #kot_item_list_holder .kot_tracking_item:last-child {
@@ -145,12 +144,6 @@
     font-weight: 500;
     color: #2d3436;
     flex: 1 1 auto;
-}
-
-@media (max-width: 600px) {
-    #kot_item_list_holder .kot_tracking_list {
-        grid-template-columns: 1fr;
-    }
 }
 
 #kot_item_list_holder .kot_item_mark_printed,

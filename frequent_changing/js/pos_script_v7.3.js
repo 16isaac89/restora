@@ -206,9 +206,23 @@
       }
 
       function isPersistedCartRow($row, item_id) {
+          let cart_row_key = (($row.attr("data-cart-row-key") || "") + "").trim();
           let previous_id = Number(($row.find("#item_previous_id_table" + item_id).html() || 0));
           let printed_qty = Number(($row.find(".p_qty").val() || 0));
-          return previous_id > 0 || printed_qty > 0;
+          return previous_id > 0 || printed_qty > 0 || cart_row_key.indexOf("prev_") === 0;
+      }
+
+      function syncKotRowQuantities($row, item_id) {
+          if (!$row || !$row.length) {
+              return;
+          }
+          let current_qty = Number($row.find("#item_quantity_table_" + item_id).html() || 0);
+          let printed_qty = Number($row.find(".p_qty").val() || 0);
+          let pending_qty = current_qty - printed_qty;
+          if (pending_qty < 0) {
+              pending_qty = 0;
+          }
+          $row.find(".tmp_qty").val(pending_qty);
       }
 
       function getPlainMergeableCartRow(item_id) {
@@ -305,7 +319,8 @@
       function getKotAggregationKey(item) {
           return [
               Number(item.kitchen_id || 0),
-              Number(item.previous_id || item.item_previous_id || item.food_menu_id || 0),
+              ((item.cart_row_key || "") + "").trim(),
+              Number(item.previous_id || item.item_previous_id || 0),
               Number(item.food_menu_id || 0),
               item.menu_name || "",
               item.modifiers_id || "",
@@ -319,13 +334,12 @@
       function getKotDisplayQtyForAggregation(item, kot_print) {
           let qty = Number(item.qty || 0);
           let tmp_qty = Number(item.tmp_qty || 0);
-          let is_print = Number(item.is_print || 0);
-          let print_count = Number(item.print_count || 0);
-          if (Number(kot_print) === 1) {
-              return qty;
-          }
-          if (tmp_qty > 0 && (is_print === 1 || qty > tmp_qty || print_count > 0)) {
+          let printed_qty = Number(item.p_qty || 0);
+          if (tmp_qty > 0) {
               return tmp_qty;
+          }
+          if (printed_qty > 0) {
+              return 0;
           }
           return qty;
       }
@@ -346,10 +360,78 @@
                   grouped_order.push(grouped_items[group_key]);
                   return;
               }
-              grouped_items[group_key].qty = Number(grouped_items[group_key].qty || 0) + display_qty;
-              grouped_items[group_key].tmp_qty = Number(grouped_items[group_key].tmp_qty || 0) + display_qty;
+              grouped_items[group_key].qty = Math.max(Number(grouped_items[group_key].qty || 0), display_qty);
+              grouped_items[group_key].tmp_qty = Math.max(Number(grouped_items[group_key].tmp_qty || 0), display_qty);
           });
           return grouped_order;
+      }
+
+      function getKotOrderLineId(item, index) {
+          let cart_row_key = ((item && item.cart_row_key) || "").trim();
+          if (cart_row_key) {
+              return "row:" + cart_row_key;
+          }
+          let previous_id = Number((item && (item.item_previous_id || item.previous_id)) || 0);
+          if (previous_id > 0) {
+              return "prev:" + previous_id;
+          }
+          return "idx:" + Number(index || 0);
+      }
+
+      function getKotDisplayLinesFromOrderItems(order_items) {
+          let lines = [];
+          (order_items || []).forEach(function (item, index) {
+              if (!item) {
+                  return;
+              }
+              let menu_name = item.menu_name ? item.menu_name : ("Item #" + (item.food_menu_id || ""));
+              let totalQty = Number(item.qty || 0);
+              let tmpQty = Number(item.tmp_qty || 0);
+              let printedQty = Number(item.p_qty || 0);
+              if (printedQty <= 0 && tmpQty > 0) {
+                  printedQty = Math.max(totalQty - tmpQty, 0);
+              }
+              let pendingQty = tmpQty > 0 ? tmpQty : Math.max(totalQty - printedQty, 0);
+              if (printedQty <= 0 && pendingQty <= 0 && totalQty > 0) {
+                  pendingQty = totalQty;
+              }
+              let lineId = getKotOrderLineId(item, index);
+              if (printedQty > 0) {
+                  lines.push({
+                      line_id: lineId + "__printed",
+                      logical_line_id: lineId,
+                      kitchen_id: Number(item.kitchen_id || 0),
+                      kitchen_name: item.kitchen_name || "",
+                      food_menu_id: item.food_menu_id || 0,
+                      menu_name: menu_name,
+                      menu_combo_items: item.menu_combo_items || "",
+                      menu_note: item.item_note || item.menu_note || "",
+                      modifiers_id: item.modifiers_id || "",
+                      modifiers_name: item.modifiers_name || "",
+                      modifiers_price: item.modifiers_price || "",
+                      qty: printedQty,
+                      is_pending: false
+                  });
+              }
+              if (pendingQty > 0) {
+                  lines.push({
+                      line_id: lineId + "__pending",
+                      logical_line_id: lineId,
+                      kitchen_id: Number(item.kitchen_id || 0),
+                      kitchen_name: item.kitchen_name || "",
+                      food_menu_id: item.food_menu_id || 0,
+                      menu_name: menu_name,
+                      menu_combo_items: item.menu_combo_items || "",
+                      menu_note: item.item_note || item.menu_note || "",
+                      modifiers_id: item.modifiers_id || "",
+                      modifiers_name: item.modifiers_name || "",
+                      modifiers_price: item.modifiers_price || "",
+                      qty: pendingQty,
+                      is_pending: true
+                  });
+              }
+          });
+          return lines;
       }
 
       function block_waiter_restricted_action() {
@@ -1668,14 +1750,13 @@
                         }
 
                         if(hasPopupPrint){
-                            // Browser KOT mode should print all items (qty), not only delta tmp_qty.
-                            $("#kot_print").val(hasDirectPrint ? 2 : 1);
-                            console.log("[PRINT][KOT][PUSH_ONLINE] popup print trigger", {
-                                hasDirectPrint: hasDirectPrint,
-                                kot_print: $("#kot_print").val(),
-                                popup_count: popupData.length
-                            });
-                            print_kot_popup_print(popupData,1);
+                            if(hasDirectPrint){
+                                $("#kot_print").val(2);
+                                print_kot_popup_print(popupData,1);
+                            }else{
+                                $("#kot_print").val(1);
+                                print_kot_print(order_object,1);
+                            }
                         } else {
                             console.warn("[PRINT][KOT][PUSH_ONLINE] no popup print data returned");
                         }
@@ -2357,7 +2438,9 @@
     }
       function print_kot_print(order_info,kot_print) {
           let order = JSON.parse(order_info);
-          let kot_items = getAggregatedKotItems(order.items, kot_print);
+          let kot_items = Number(kot_print) === 1
+              ? getKotDisplayLinesFromOrderItems(order.items || [])
+              : getAggregatedKotItems(order.items, kot_print);
           // console.log(order);
           let order_type = "";
           let total_item_counter = 0;
@@ -5667,7 +5750,7 @@
             $(".pos__modal__overlay").fadeIn(200);
         }
       //when single ite is clicked pop-up modal is appeared
-        $(document).on("click", ".single_item", function () {
+      $(document).on("click", ".single_item", function () {
             //focus search field
               focusSearch();
             //add for vr01 and clear previous cart before new addd
@@ -5690,8 +5773,9 @@
                 let parent_id = ($(this).attr('data-parent_id'));
                 let item_name = getPlanText($(this).find(".item_name").html());
                 let when_clicking_on_item_in_pos = Number($("#when_clicking_on_item_in_pos").val());
+                let is_edit_click = Number($("#is_edit_click").val() || 0);
                 let status_continue = true;
-                let mergeable_row = getPlainMergeableCartRow(item_id);
+                let mergeable_row = is_edit_click === 2 ? $() : getPlainMergeableCartRow(item_id);
                 let if_exist = mergeable_row.length ? Number(mergeable_row.find("#item_quantity_table_" + item_id).html()) : 0;
   
                 if(when_clicking_on_item_in_pos==2){
@@ -8329,6 +8413,7 @@
   
             //update quantity of this item to view
             $(this).parent().find("span").html(item_quantity);
+            syncKotRowQuantities(single_order_element_object, item_id);
   
             increase_free_item_qty(2,item_quantity,item_id);
             //do calculation on update values
@@ -8414,6 +8499,7 @@
                     
                                 //update quantity of this item to view
                                 this_action.parent().find("span").html(item_quantity);
+                                syncKotRowQuantities(single_order_element_object, item_id);
                     
                                 increase_free_item_qty(1,item_quantity,item_id);
                     
@@ -8457,6 +8543,7 @@
         
                     //update quantity of this item to view
                     this_action.parent().find("span").html(item_quantity);
+                    syncKotRowQuantities(single_order_element_object, item_id);
         
                     increase_free_item_qty(1,item_quantity,item_id);
         
@@ -11454,79 +11541,37 @@
       if (!sale_no) {
         return;
       }
-      $.ajax({
-        url: base_url + "Authentication/getKotTrackingItems",
-        method: "post",
-        dataType: "json",
-        data: {
-          selected_order_no: sale_no
-        },
-        success: function (response) {
-          if(!response || response.status !== "success"){
-            toastr['error']((response && response.message) ? response.message : "Unable to load KOT items.", '');
-            return;
-          }
-          let items = Array.isArray(response.items) ? response.items : [];
-          if(!items.length){
-            $("#kot_tracking_summary").html("").hide();
-            $("#kot_item_list_holder").html('<p class="kot_empty_state">No KOT items found.</p>');
-            return;
-          }
-          let groupedItems = {};
-          for(let i = 0; i < items.length; i++){
-            let item = items[i];
-            if(!item || !item.sales_details_id){
-              continue;
-            }
-            let menu_name = item.menu_name ? item.menu_name : ("Item #" + item.food_menu_id);
-            let qty = Number(item.qty || 0);
-            let tmpQty = Number(item.tmp_qty || 0);
-            if (tmpQty > 0 && (Number(item.is_print) === 1 || qty > tmpQty || Number(item.print_count || 0) > 0)) {
-              qty = tmpQty;
-            }
-            if (qty <= 0) {
-              continue;
-            }
-            let groupKey = [
-              item.kitchen_id || 0,
-              item.previous_id || item.food_menu_id || item.sales_details_id || 0,
-              menu_name
-            ].join("__");
-            if (!groupedItems[groupKey]) {
-              groupedItems[groupKey] = {
-                checkbox_id: "kot_item_checkbox_" + item.sales_details_id,
-                sales_detail_ids: [],
-                menu_name: menu_name,
-                qty: qty
-              };
-            }
-            groupedItems[groupKey].sales_detail_ids.push(item.sales_details_id);
-            groupedItems[groupKey].qty = Math.max(Number(groupedItems[groupKey].qty || 0), qty);
-          }
-          let groupKeys = Object.keys(groupedItems);
-          if(!groupKeys.length){
-            $("#kot_item_list_holder").html('<p class="kot_empty_state">No KOT items found.</p>');
-            return;
-          }
-          let html_items = '<ul class="kot_tracking_list">';
-          for(let i = 0; i < groupKeys.length; i++){
-            let groupedItem = groupedItems[groupKeys[i]];
-            html_items += '<li class="kot_tracking_item kot_tracking_row">';
-            html_items += '<input type="checkbox" class="kot_item_checkbox class_check" id="' + groupedItem.checkbox_id + '" value="' + groupedItem.sales_detail_ids.join(",") + '" />';
-            html_items += '<label class="kot_item_label kot_tracking_label" for="' + groupedItem.checkbox_id + '">';
-            html_items += '<span class="kot_item_name_text">' + groupedItem.menu_name + ' (' + groupedItem.qty + ')</span>';
-            html_items += '</label>';
-            html_items += '</li>';
-          }
-          html_items += '</ul>';
-          $("#kot_item_list_holder").html(html_items).scrollTop(0);
-          setTimeout(function () {
-            $(".scrollbar-macosx").scrollbar();
-          }, 0);
-        },
-        error: function () {
-          toastr['error']("Unable to load KOT items.", '');
+      getSelectedOrderDetails(sale_no).then(function (data) {
+        let response = typeof data === "string" ? jQuery.parseJSON(data) : data;
+        let items = response && Array.isArray(response.items) ? response.items : [];
+        let lines = getKotDisplayLinesFromOrderItems(items);
+        if(!lines.length){
+          $("#kot_tracking_summary").html("").hide();
+          $("#kot_item_list_holder").html('<p class="kot_empty_state">No KOT items found.</p>');
+          return;
         }
+        let html_items = '<ul class="kot_tracking_list">';
+        for(let i = 0; i < lines.length; i++){
+          let line = lines[i];
+          let checkbox_id = "kot_item_checkbox_" + i;
+          html_items += '<li class="kot_tracking_item kot_tracking_row">';
+          if (line.is_pending) {
+            html_items += '<input type="checkbox" class="kot_item_checkbox class_check" id="' + checkbox_id + '" value="' + line.logical_line_id + '" />';
+          } else {
+            html_items += '<span class="kot_item_spacer"></span>';
+          }
+          html_items += '<label class="kot_item_label kot_tracking_label" for="' + checkbox_id + '">';
+          html_items += '<span class="kot_item_name_text">' + line.menu_name + ' (' + line.qty + ')</span>';
+          html_items += '</label>';
+          html_items += '</li>';
+        }
+        html_items += '</ul>';
+        $("#kot_item_list_holder").html(html_items).scrollTop(0);
+        setTimeout(function () {
+          $(".scrollbar-macosx").scrollbar();
+        }, 0);
+      }).catch(function () {
+        toastr['error']("Unable to load KOT items.", '');
       });
     }
 
@@ -11579,6 +11624,36 @@
           });
           toastr['error']("Unable to fetch KOT print data from server.", '');
         },
+      });
+    }
+
+    function print_selected_kot_lines_from_order(selected_order_no, selected_line_ids) {
+      getSelectedOrderDetails(selected_order_no).then(function (data) {
+        let response = typeof data === "string" ? jQuery.parseJSON(data) : data;
+        if (!response || !Array.isArray(response.items)) {
+          toastr['error']("Unable to load KOT items.", '');
+          return;
+        }
+        let selectedLookup = {};
+        (selected_line_ids || []).forEach(function (line_id) {
+          selectedLookup[line_id] = true;
+        });
+        let filteredItems = [];
+        (response.items || []).forEach(function (item, index) {
+          let logicalLineId = getKotOrderLineId(item, index);
+          if (selectedLookup[logicalLineId]) {
+            filteredItems.push(item);
+          }
+        });
+        if (!filteredItems.length) {
+          toastr['error']("Please select at least one item to print.", '');
+          return;
+        }
+        let filteredOrder = $.extend(true, {}, response);
+        filteredOrder.items = filteredItems;
+        print_kot_print(JSON.stringify(filteredOrder), 1);
+      }).catch(function () {
+        toastr['error']("Unable to load KOT items.", '');
       });
     }
 
@@ -11647,6 +11722,21 @@
             toastr['error']("Please select at least one item to print.", '');
             return;
         }
+        print_selected_kot_lines_from_order(selected_order_no, selected_sales_detail_ids);
+        $(this)
+          .parent()
+          .parent()
+          .parent()
+          .removeClass("active")
+          .addClass("inActive");
+        setTimeout(function () {
+          $(".modal").removeClass("inActive");
+          $(".kitchen_ids").prop("checked",false);
+          $(".kot_item_checkbox").prop("checked", false);
+          $("#kot_check_all").prop("checked", false);
+        }, 1000);
+        $(".pos__modal__overlay").fadeOut(300);
+        return;
         let kitchen_id = get_selected_kitchen_ids_csv();
         if(!kitchen_id){
             kitchen_id = get_all_kitchen_ids_csv();

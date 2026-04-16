@@ -36,18 +36,101 @@ class Authentication extends Cl_Controller {
     private function getKotItemDisplayQty($item) {
         $qty = isset($item->qty) ? (float)$item->qty : 0;
         $tmp_qty = isset($item->tmp_qty) ? (float)$item->tmp_qty : 0;
-        $is_print = isset($item->is_print) ? (int)$item->is_print : 0;
-        $print_count = isset($item->print_count) ? (int)$item->print_count : 0;
-        if($tmp_qty > 0 && ($is_print === 1 || $qty > $tmp_qty || $print_count > 0)){
+        if($tmp_qty > 0){
             return $tmp_qty;
         }
         return $qty;
+    }
+
+    private function aggregateKotItemsForTracking($items) {
+        if(!is_array($items) || empty($items)){
+            return array();
+        }
+        $grouped = array();
+        $seen_sales_detail_ids = array();
+        foreach ($items as $item) {
+            if(!$item || !isset($item->sales_details_id)){
+                continue;
+            }
+            $sales_details_id = (int)$item->sales_details_id;
+            if(isset($seen_sales_detail_ids[$sales_details_id])){
+                continue;
+            }
+            $seen_sales_detail_ids[$sales_details_id] = true;
+            $menu_name = isset($item->menu_name) && $item->menu_name ? $item->menu_name : '';
+            $food_menu_key = isset($item->food_menu_id) ? (string)$item->food_menu_id : '0';
+            $note_key = isset($item->menu_note) ? (string)$item->menu_note : '';
+            $combo_key = isset($item->menu_combo_items) ? (string)$item->menu_combo_items : '';
+            $group_key = $food_menu_key.'__'.$menu_name.'__'.$note_key.'__'.$combo_key;
+            $qty = isset($item->qty) ? (float)$item->qty : 0;
+            $tmp_qty = isset($item->tmp_qty) ? (float)$item->tmp_qty : 0;
+            if(!isset($grouped[$group_key])){
+                $grouped[$group_key] = clone $item;
+                $grouped[$group_key]->qty = $tmp_qty > 0 ? $tmp_qty : $qty;
+                $grouped[$group_key]->tmp_qty = $tmp_qty > 0 ? $tmp_qty : 0;
+                $grouped[$group_key]->_has_pending_tmp_qty = $tmp_qty > 0 ? 1 : 0;
+                continue;
+            }
+            if($tmp_qty > 0){
+                if((int)$grouped[$group_key]->_has_pending_tmp_qty !== 1 || $tmp_qty > (float)$grouped[$group_key]->qty){
+                    $grouped[$group_key] = clone $item;
+                    $grouped[$group_key]->qty = $tmp_qty;
+                    $grouped[$group_key]->tmp_qty = $tmp_qty;
+                    $grouped[$group_key]->_has_pending_tmp_qty = 1;
+                }
+                continue;
+            }
+            if((int)$grouped[$group_key]->_has_pending_tmp_qty === 1){
+                continue;
+            }
+            if($qty > (float)$grouped[$group_key]->qty){
+                $grouped[$group_key] = clone $item;
+                $grouped[$group_key]->qty = $qty;
+                $grouped[$group_key]->tmp_qty = 0;
+                $grouped[$group_key]->_has_pending_tmp_qty = 0;
+            }
+        }
+        foreach ($grouped as $group_key => $group_item) {
+            unset($grouped[$group_key]->_has_pending_tmp_qty);
+        }
+        return array_values($grouped);
+    }
+
+    private function dedupeKotRowsByLogicalRow($items) {
+        if(!is_array($items) || empty($items)){
+            return array();
+        }
+        $deduped = array();
+        foreach ($items as $item) {
+            if(!$item){
+                continue;
+            }
+            $logical_row_id = 0;
+            if(isset($item->previous_id) && (int)$item->previous_id > 0){
+                $logical_row_id = (int)$item->previous_id;
+            }elseif(isset($item->sales_details_id) && (int)$item->sales_details_id > 0){
+                $logical_row_id = (int)$item->sales_details_id;
+            }else{
+                $logical_row_id = count($deduped) + 1;
+            }
+            if(!isset($deduped[$logical_row_id])){
+                $deduped[$logical_row_id] = $item;
+                continue;
+            }
+            $existing_id = isset($deduped[$logical_row_id]->sales_details_id) ? (int)$deduped[$logical_row_id]->sales_details_id : 0;
+            $current_id = isset($item->sales_details_id) ? (int)$item->sales_details_id : 0;
+            if($current_id >= $existing_id){
+                $deduped[$logical_row_id] = $item;
+            }
+        }
+        return array_values($deduped);
     }
 
     private function aggregateKotItemsForOutput($items) {
         if(!is_array($items) || empty($items)){
             return array();
         }
+        $items = $this->dedupeKotRowsByLogicalRow($items);
         $grouped = array();
         foreach ($items as $item) {
             if(!$item){
@@ -60,11 +143,11 @@ class Authentication extends Cl_Controller {
             }
             $menu_name = isset($item->menu_name) && $item->menu_name ? $item->menu_name : '';
             $kitchen_key = isset($item->printer_id) ? (string)$item->printer_id : (isset($item->kitchen_id) ? (string)$item->kitchen_id : '0');
-            $previous_key = isset($item->previous_id) && $item->previous_id ? (string)$item->previous_id : (isset($item->food_menu_id) ? (string)$item->food_menu_id : (isset($item->sales_details_id) ? (string)$item->sales_details_id : uniqid('kot_', true)));
+            $food_menu_key = isset($item->food_menu_id) ? (string)$item->food_menu_id : '0';
             $modifier_key = isset($item->modifiers_id) ? (string)$item->modifiers_id : '';
             $note_key = isset($item->menu_note) ? (string)$item->menu_note : '';
             $combo_key = isset($item->menu_combo_items) ? (string)$item->menu_combo_items : '';
-            $group_key = $kitchen_key.'__'.$previous_key.'__'.$menu_name.'__'.$modifier_key.'__'.$note_key.'__'.$combo_key;
+            $group_key = $kitchen_key.'__'.$food_menu_key.'__'.$menu_name.'__'.$modifier_key.'__'.$note_key.'__'.$combo_key;
             if(!isset($grouped[$group_key])){
                 $grouped[$group_key] = clone $item;
                 $grouped[$group_key]->qty = $display_qty;
@@ -74,7 +157,7 @@ class Authentication extends Cl_Controller {
             }
             if($tmp_qty > 0){
                 $grouped[$group_key]->_has_pending_tmp_qty = 1;
-                $grouped[$group_key]->tmp_qty = (float)$grouped[$group_key]->tmp_qty + $tmp_qty;
+                $grouped[$group_key]->tmp_qty = max((float)$grouped[$group_key]->tmp_qty, $tmp_qty);
             }else{
                 $grouped[$group_key]->qty = max((float)$grouped[$group_key]->qty, $display_qty);
             }
@@ -2234,6 +2317,7 @@ class Authentication extends Cl_Controller {
                     if(!is_array($sale_items)){
                         $sale_items = array();
                     }
+                    $sale_items = $this->dedupeKotRowsByLogicalRow($sale_items);
                     if(!empty($selected_sales_detail_ids)){
                         $sale_items = array_values(array_filter($sale_items, function($item) use ($selected_sales_detail_ids){
                             return isset($item->sales_details_id) && in_array((int)$item->sales_details_id, $selected_sales_detail_ids, true);
@@ -2307,6 +2391,7 @@ class Authentication extends Cl_Controller {
                     if(!is_array($sale_items)){
                         $sale_items = array();
                     }
+                    $sale_items = $this->dedupeKotRowsByLogicalRow($sale_items);
                     if(!empty($selected_sales_detail_ids)){
                         $sale_items = array_values(array_filter($sale_items, function($item) use ($selected_sales_detail_ids){
                             return isset($item->sales_details_id) && in_array((int)$item->sales_details_id, $selected_sales_detail_ids, true);
@@ -2452,7 +2537,7 @@ class Authentication extends Cl_Controller {
             return;
         }
         $items = $this->Common_model->getKotTrackingItemsBySaleId($sale_details->id);
-        $items = $this->aggregateKotItemsForOutput($items);
+        $items = $this->dedupeKotRowsByLogicalRow($items);
         echo json_encode(array(
             'status' => 'success',
             'items' => $items

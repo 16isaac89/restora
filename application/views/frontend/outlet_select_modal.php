@@ -11,13 +11,13 @@
                         <?php
                         $outlets = getAllOutlestByAssignFront();
                         foreach ($outlets as $value):
-                        if ($value->online_order_module == 2): ?>
+                        ?>
                             <option <?php echo set_select('outlet_id', $value->id) ?> value="<?php echo escape_output($value->id) ?>">
                                 <?php echo escape_output($value->outlet_name) ?>
                             </option>
-                        <?php endif;  
+                        <?php
                         endforeach;
-                            ?>
+                        ?>
                     </select>
                 </div>
                 <button type="submit" class="submit-button left13" id="submitOutlet"><?php echo lang('submit'); ?></button>
