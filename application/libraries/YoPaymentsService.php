@@ -19,10 +19,12 @@ class YoPaymentsService {
         $settings = isset($company->payment_settings) ? json_decode($company->payment_settings) : null;
 
         $this->is_enabled = true;
-        $username = '90009372017';
-        $password = '7775856071';
+        // $username = '90009372017';
+        // $password = '7775856071';
+         $username = '100134680791';
+        $password = 'd2sh-ChT7-ptKR-0ULa-coY5-xPcG-xEbq-Fy3o';
         $this->is_configured = true;
-        $mode = 'sandbox';
+        $mode = 'production';
 
         $params = array(
             'username' => $username,
@@ -31,6 +33,9 @@ class YoPaymentsService {
         );
 
         $this->yopay = new YoPayments($params);
+        $this->yopay->set_non_blocking('TRUE');
+        $this->yopay->set_instant_notification_url($this->ci->config->site_url('Payments/yo_callback/success'));
+        $this->yopay->set_failure_notification_url($this->ci->config->site_url('Payments/yo_callback/failure'));
     }
 
     public function initiate_payment($phone, $amount, $narrative = 'POS Order Payment') {
@@ -41,14 +46,18 @@ class YoPaymentsService {
             return array('Status' => 'ERROR', 'StatusMessage' => 'YoPayments API credentials are missing');
         }
         $phone = $this->format_phone($phone);
-        return $this->yopay->ac_deposit_funds($phone, $amount, $narrative);
+        $external_reference = $this->generate_external_reference($phone);
+        $this->yopay->set_external_reference($external_reference);
+        $response = $this->yopay->ac_deposit_funds($phone, $amount, $narrative);
+        $response['ExternalReference'] = $external_reference;
+        return $response;
     }
 
-    public function check_status($transaction_reference) {
+    public function check_status($transaction_reference = null, $private_transaction_reference = null) {
         if (!$this->is_enabled || !$this->is_configured) {
             return array('TransactionStatus' => 'FAILED', 'StatusMessage' => 'YoPayments is not configured');
         }
-        return $this->yopay->ac_transaction_check_status($transaction_reference);
+        return $this->yopay->ac_transaction_check_status($transaction_reference, $private_transaction_reference);
     }
 
     private function format_phone($phone) {
@@ -71,5 +80,10 @@ class YoPaymentsService {
         }
 
         return $phone;
+    }
+
+    private function generate_external_reference($phone) {
+        $phone_suffix = substr($phone, -4);
+        return 'restora-' . $phone_suffix . '-' . date('YmdHis') . '-' . substr(str_replace('.', '', uniqid('', true)), -6);
     }
 }

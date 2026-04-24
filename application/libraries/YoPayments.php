@@ -248,6 +248,42 @@ class YoPayments {
     }
 
     /**
+    * Set whether deposit requests should return immediately.
+    * @param string $non_blocking Expected values: "TRUE" or "FALSE"
+    * @return void
+    */
+    public function set_non_blocking($non_blocking){
+        $this->NonBlocking = strtoupper((string) $non_blocking) === 'TRUE' ? 'TRUE' : 'FALSE';
+    }
+
+    /**
+    * Set the external reference used to uniquely identify a request.
+    * @param string $external_reference
+    * @return void
+    */
+    public function set_external_reference($external_reference){
+        $this->external_reference = $external_reference;
+    }
+
+    /**
+    * Set the URL Yo should call after a successful payment update.
+    * @param string $instant_notification_url
+    * @return void
+    */
+    public function set_instant_notification_url($instant_notification_url){
+        $this->instant_notification_url = $instant_notification_url;
+    }
+
+    /**
+    * Set the URL Yo should call after a failed payment update.
+    * @param string $failure_notification_url
+    * @return void
+    */
+    public function set_failure_notification_url($failure_notification_url){
+        $this->failure_notification_url = $failure_notification_url;
+    }
+
+    /**
     * Request Mobile Money User to deposit funds into your account
     * Shortly after you submit this request, the mobile money user receives an on-screen
     * notification on their mobile phone. The notification informs the mobile money user about
@@ -382,8 +418,8 @@ class YoPayments {
     {
         $soap_do = curl_init();
         curl_setopt($soap_do, CURLOPT_URL, $this->YOURL);
-        curl_setopt($soap_do, CURLOPT_CONNECTTIMEOUT, 120);
-        curl_setopt($soap_do, CURLOPT_TIMEOUT, 120);
+        curl_setopt($soap_do, CURLOPT_CONNECTTIMEOUT, 15);
+        curl_setopt($soap_do, CURLOPT_TIMEOUT, 30);
         curl_setopt($soap_do, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($soap_do, CURLOPT_POST, true);
         curl_setopt($soap_do, CURLOPT_POSTFIELDS, $xml);

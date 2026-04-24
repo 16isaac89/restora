@@ -20556,8 +20556,9 @@
           console.log("[YoPayments] initiate_mobile_money response", response);
           if (response.status === "success") {
             let ref = response.transaction_reference;
+            let privateRef = response.private_transaction_reference || "";
             toastr['success']("Payment request sent to customer's phone. Please approve the payment.", '');
-            poll_yopayments_status(ref);
+            poll_yopayments_status(ref, privateRef);
           } else {
             toastr['error']((response.message || "Payment initiation failed"), '');
             $("#finalize_order_button").prop("disabled", false);
@@ -20577,14 +20578,18 @@
       });
     }
 
-    function poll_yopayments_status(ref) {
+    function poll_yopayments_status(ref, privateRef) {
       let pollCount = 0;
       let pollErrorCount = 0;
       let paymentFinalized = false;
-      console.log("[YoPayments] Start polling", { ref: ref });
+      let statusUrl = base_url + "Payments/check_status/" + encodeURIComponent(ref || "");
+      if (privateRef) {
+        statusUrl += "?private_ref=" + encodeURIComponent(privateRef);
+      }
+      console.log("[YoPayments] Start polling", { ref: ref, privateRef: privateRef, statusUrl: statusUrl });
       let pollInterval = setInterval(function () {
         pollCount++;
-        console.log("[YoPayments] Poll tick", { ref: ref, pollCount: pollCount });
+        console.log("[YoPayments] Poll tick", { ref: ref, privateRef: privateRef, pollCount: pollCount });
         if (pollCount > 30) {
           clearInterval(pollInterval);
           console.warn("[YoPayments] Poll timeout", { ref: ref, pollCount: pollCount });
@@ -20595,7 +20600,7 @@
         }
 
         $.ajax({
-          url: base_url + "Payments/check_status/" + ref,
+          url: statusUrl,
           method: "GET",
           dataType: "json",
           success: function (response) {
