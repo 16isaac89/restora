@@ -21,6 +21,7 @@ class Payments extends CI_Controller {
             echo json_encode(array('status' => 'error', 'message' => 'Unauthorized request'));
             return;
         }
+        $this->release_session_lock();
 
         $order_id = trim((string)$this->input->post('order_id'));
         $amount = trim((string)$this->input->post('amount'));
@@ -62,6 +63,7 @@ class Payments extends CI_Controller {
             echo json_encode(array('status' => 'failed', 'message' => 'Unauthorized request'));
             return;
         }
+        $this->release_session_lock();
 
         $ref = trim((string)$ref);
         if ($ref === '') {
@@ -425,5 +427,16 @@ class Payments extends CI_Controller {
         )) . PHP_EOL;
 
         @file_put_contents($dir . DIRECTORY_SEPARATOR . 'yopayments.log', $line, FILE_APPEND);
+    }
+
+    private function release_session_lock() {
+        if (function_exists('session_status') && session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+            return;
+        }
+
+        if (function_exists('session_id') && session_id() !== '') {
+            @session_write_close();
+        }
     }
 }

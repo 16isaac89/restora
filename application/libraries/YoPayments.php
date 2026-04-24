@@ -416,6 +416,7 @@ class YoPayments {
 
     protected function get_xml_response($xml)
     {
+        $started_at = microtime(true);
         $soap_do = curl_init();
         curl_setopt($soap_do, CURLOPT_URL, $this->YOURL);
         curl_setopt($soap_do, CURLOPT_CONNECTTIMEOUT, 15);
@@ -429,8 +430,36 @@ class YoPayments {
         curl_setopt($soap_do, CURLOPT_HTTPHEADER, array('Content-Type: text/xml','Content-transfer-encoding: text','Content-Length: '.strlen($xml)));
 
         $xml_response = curl_exec($soap_do);
+        $curl_errno = curl_errno($soap_do);
+        $curl_error = curl_error($soap_do);
+        $curl_info = curl_getinfo($soap_do);
         curl_close($soap_do);
 
+        $this->write_debug_log(array(
+            'timestamp' => date('c'),
+            'url' => $this->YOURL,
+            'duration_ms' => (int) round((microtime(true) - $started_at) * 1000),
+            'curl_errno' => $curl_errno,
+            'curl_error' => $curl_error,
+            'http_code' => isset($curl_info['http_code']) ? $curl_info['http_code'] : null,
+            'total_time' => isset($curl_info['total_time']) ? $curl_info['total_time'] : null,
+            'namelookup_time' => isset($curl_info['namelookup_time']) ? $curl_info['namelookup_time'] : null,
+            'connect_time' => isset($curl_info['connect_time']) ? $curl_info['connect_time'] : null,
+            'starttransfer_time' => isset($curl_info['starttransfer_time']) ? $curl_info['starttransfer_time'] : null,
+            'request_excerpt' => substr(preg_replace('/\s+/', ' ', (string) $xml), 0, 500),
+            'response_excerpt' => substr(preg_replace('/\s+/', ' ', (string) $xml_response), 0, 500)
+        ));
+
         return $xml_response;
+    }
+
+    private function write_debug_log($data)
+    {
+        $dir = APPPATH . 'cache' . DIRECTORY_SEPARATOR . 'yopayments_logs';
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+
+        @file_put_contents($dir . DIRECTORY_SEPARATOR . 'yopayments_transport.log', json_encode($data) . PHP_EOL, FILE_APPEND);
     }
 }
