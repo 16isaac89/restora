@@ -103,6 +103,13 @@ class YoPayments {
     private $authentication_signature_base64 = NULL;
 
     /**
+     * The mobile money account provider code.
+     * Optional.
+     * @var string
+     */
+    private $account_provider_code = NULL;
+
+    /**
      * The Deposit Transaction Type variable
      * Optional.
      * Set to "PUSH" if following up on the status of a push deposit funds transaction
@@ -284,6 +291,15 @@ class YoPayments {
     }
 
     /**
+    * Set the account provider code, e.g. MTN_UGANDA or AIRTEL_UGANDA.
+    * @param string $account_provider_code
+    * @return void
+    */
+    public function set_account_provider_code($account_provider_code){
+        $this->account_provider_code = $account_provider_code;
+    }
+
+    /**
     * Request Mobile Money User to deposit funds into your account
     * Shortly after you submit this request, the mobile money user receives an on-screen
     * notification on their mobile phone. The notification informs the mobile money user about
@@ -307,6 +323,7 @@ class YoPayments {
         $xml .= '<NonBlocking>'.$this->NonBlocking.'</NonBlocking>';
         $xml .= '<Account>'.$msisdn.'</Account>';
         $xml .= '<Amount>'.$amount.'</Amount>';
+        if( $this->account_provider_code != NULL ){ $xml .= '<AccountProviderCode>'.$this->account_provider_code.'</AccountProviderCode>'; }
         $xml .= '<Narrative>'.$narrative.'</Narrative>';
         if( $this->external_reference != NULL ){ $xml .= '<ExternalReference>'.$this->external_reference.'</ExternalReference>'; }
         if( $this->internal_reference != NULL ) { $xml .= '<InternalReference>'.$this->internal_reference.'</InternalReference>'; }

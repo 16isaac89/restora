@@ -20582,6 +20582,7 @@
       let pollCount = 0;
       let pollErrorCount = 0;
       let paymentFinalized = false;
+      let delayedFailureSeen = false;
       let statusUrl = base_url + "Payments/check_status/" + encodeURIComponent(ref || "");
       if (privateRef) {
         statusUrl += "?private_ref=" + encodeURIComponent(privateRef);
@@ -20590,10 +20591,10 @@
       let pollInterval = setInterval(function () {
         pollCount++;
         console.log("[YoPayments] Poll tick", { ref: ref, privateRef: privateRef, pollCount: pollCount });
-        if (pollCount > 30) {
+        if (pollCount > (delayedFailureSeen ? 45 : 30)) {
           clearInterval(pollInterval);
           console.warn("[YoPayments] Poll timeout", { ref: ref, pollCount: pollCount });
-          toastr['error']("Payment timeout. Please try again or check your phone.", '');
+          toastr['error'](delayedFailureSeen ? "Payment response is delayed. Check the customer's phone before retrying." : "Payment timeout. Please try again or check your phone.", '');
           $("#finalize_order_button").prop("disabled", false);
           $("#finalize_order_button").html('<i class="fas fa-file-invoice"></i> Submit');
           return;
@@ -20617,6 +20618,13 @@
               $("#finalize_order_button").prop("disabled", false);
               $("#finalize_order_button").html('<i class="fas fa-file-invoice"></i> Submit');
               $("#finalize_order_button").trigger("click", [true]);
+            } else if (response.status === "delayed_failure") {
+              delayedFailureSeen = true;
+              $("#finalize_order_button").prop("disabled", true);
+              $("#finalize_order_button").html('<i class="fas fa-spinner fa-spin"></i> Awaiting Phone Confirmation...');
+              if (pollCount === 1 || pollCount % 5 === 0) {
+                toastr['warning']((response.message || "Payment response is delayed. Check the customer's phone before retrying."), '');
+              }
             } else if (response.status === "failed") {
               clearInterval(pollInterval);
               toastr['error'](("Payment failed: " + (response.message || "Unknown error")), '');

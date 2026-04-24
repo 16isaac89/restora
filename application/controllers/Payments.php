@@ -89,7 +89,9 @@ class Payments extends CI_Controller {
         $final_status = 'pending';
 
         $success_statuses = array('SUCCEEDED', 'SUCCESSFUL', 'COMPLETE', 'COMPLETED', 'PAID');
-        if (in_array($status, $success_statuses, true) || strpos($status_message, 'SUCCESS') !== false) {
+        $has_success_keyword = preg_match('/\b(SUCCEEDED|SUCCESSFUL|COMPLETED|COMPLETE|PAID)\b/', $status_message) === 1;
+        $has_failure_keyword = preg_match('/\b(FAILED|FAIL|ERROR|UNSUCCESSFUL|DECLINED|CANCELLED|CANCELED|REJECTED)\b/', $status_message) === 1;
+        if ((in_array($status, $success_statuses, true) || $has_success_keyword) && !$has_failure_keyword) {
             $final_status = 'success';
             $this->write_debug_log('check_status', array(
                 'ref' => $ref,
@@ -111,6 +113,24 @@ class Payments extends CI_Controller {
             2, 3, 7, 8, 10, 11, 14, 15, 16, 18, 19, 22, 24, 26, 28
         );
         if ($gateway_status_code_int !== null && in_array($gateway_status_code_int, $explicit_failed_status_codes, true)) {
+            if ($gateway_status_code_int === 2 && $error_code === '34') {
+                $final_status = 'delayed_failure';
+                $this->write_debug_log('check_status', array(
+                    'ref' => $ref,
+                    'private_ref' => $private_ref,
+                    'source' => $response_source,
+                    'final_status' => $final_status,
+                    'response' => $response
+                ));
+                echo json_encode(array(
+                    'status' => 'delayed_failure',
+                    'message' => 'Payment response is delayed. Check the customer phone before retrying.',
+                    'yo_status' => $status,
+                    'yo_response' => $response
+                ));
+                return;
+            }
+
             $final_status = 'failed';
             $this->write_debug_log('check_status', array(
                 'ref' => $ref,

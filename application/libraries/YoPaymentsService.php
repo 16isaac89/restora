@@ -34,8 +34,8 @@ class YoPaymentsService {
 
         $this->yopay = new YoPayments($params);
         $this->yopay->set_non_blocking('TRUE');
-        $this->yopay->set_instant_notification_url($this->ci->config->site_url('Payments/yo_callback/success'));
-        $this->yopay->set_failure_notification_url($this->ci->config->site_url('Payments/yo_callback/failure'));
+        $this->yopay->set_instant_notification_url($this->build_callback_url('Payments/yo_callback/success'));
+        $this->yopay->set_failure_notification_url($this->build_callback_url('Payments/yo_callback/failure'));
     }
 
     public function initiate_payment($phone, $amount, $narrative = 'POS Order Payment') {
@@ -46,10 +46,17 @@ class YoPaymentsService {
             return array('Status' => 'ERROR', 'StatusMessage' => 'YoPayments API credentials are missing');
         }
         $phone = $this->format_phone($phone);
+        $provider_code = $this->detect_account_provider_code($phone);
+        if ($provider_code !== '') {
+            $this->yopay->set_account_provider_code($provider_code);
+        }
         $external_reference = $this->generate_external_reference($phone);
         $this->yopay->set_external_reference($external_reference);
         $response = $this->yopay->ac_deposit_funds($phone, $amount, $narrative);
         $response['ExternalReference'] = $external_reference;
+        if ($provider_code !== '') {
+            $response['AccountProviderCode'] = $provider_code;
+        }
         return $response;
     }
 
@@ -85,5 +92,47 @@ class YoPaymentsService {
     private function generate_external_reference($phone) {
         $phone_suffix = substr($phone, -4);
         return 'restora-' . $phone_suffix . '-' . date('YmdHis') . '-' . substr(str_replace('.', '', uniqid('', true)), -6);
+    }
+
+    private function detect_account_provider_code($phone) {
+        $msisdn = preg_replace('/[^0-9]/', '', (string) $phone);
+
+        if (strpos($msisdn, '256') === 0) {
+            $local = '0' . substr($msisdn, 3);
+        } else {
+            $local = $msisdn;
+        }
+
+        $mtn_prefixes = array('077', '078', '076', '039');
+        $airtel_prefixes = array('070', '075', '074', '020');
+
+        foreach ($mtn_prefixes as $prefix) {
+            if (strpos($local, $prefix) === 0) {
+                return 'MTN_UGANDA';
+            }
+        }
+
+        foreach ($airtel_prefixes as $prefix) {
+            if (strpos($local, $prefix) === 0) {
+                return 'AIRTEL_UGANDA';
+            }
+        }
+
+        return '';
+    }
+
+    private function build_callback_url($path) {
+        $host = isset($_SERVER['HTTP_HOST']) ? trim((string) $_SERVER['HTTP_HOST']) : '';
+        if ($host !== '') {
+            $is_https = (
+                (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') ||
+                (isset($_SERVER['SERVER_PORT']) && (string) $_SERVER['SERVER_PORT'] === '443') ||
+                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+            );
+            $scheme = $is_https ? 'https' : 'http';
+            return $scheme . '://' . $host . '/' . ltrim($path, '/');
+        }
+
+        return $this->ci->config->site_url($path);
     }
 }
