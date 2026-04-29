@@ -575,6 +575,22 @@
           }
           return getDisplayPriceWithTaxInfo(base_price, item_data.tax_information);
       }
+      function getPosItems() {
+          if (!Array.isArray(window.items)) {
+              window.items = [];
+          }
+          return window.items;
+      }
+      function getPosItemById(item_id) {
+          let posItems = getPosItems();
+          for (let i = 0; i < posItems.length; i++) {
+              if (posItems[i].item_id == item_id) {
+                  return posItems[i];
+              }
+          }
+          return null;
+      }
+      getPosItems();
       function status_self_order_checker() {
           $(".status_self_order").each(function() {
               let this_value = $(this).text();
@@ -5830,32 +5846,38 @@
                 let discount = 0;
                 let get_food_menu_id = 0;
                 let qty = 0;
-                let get_qty = 0;
-                let modal_item_name_row = '';
-  
-                for (let i = 0; i < window.items.length; i++) {
-                    // look for the entry with a matching `code` value
-                    if (items[i].item_id == item_id) {
-                        tax_information = items[i].tax_information;
-                        /*added_new_zakir*/
-                        product_type = Number(items[i].product_type);
-                        product_comb = (items[i].product_comb);
-                        is_promo = (items[i].is_promo);
-                        promo_type = (items[i].promo_type);
-                        string_text = (items[i].string_text);
-                        discount = (items[i].discount);
-                        get_food_menu_id = (items[i].get_food_menu_id);
-                        qty = (items[i].qty);
-                        get_qty = (items[i].get_qty);
-                        modal_item_name_row = (items[i].modal_item_name_row);
-                        /*end_added_new_zakir*/
-                    }
-                }
-  
-              if(status_continue==true){
-                  if(is_variation=="Yes") {
-                      $("#is_variation_product").html(100);
-                      openProductEditModal(item_id,item_name,item_id);
+	                let get_qty = 0;
+	                let modal_item_name_row = '';
+                    let posItems = getPosItems();
+                    let clickedItemDetails = getPosItemById(item_id);
+
+	                for (let i = 0; i < posItems.length; i++) {
+	                    // look for the entry with a matching `code` value
+	                    if (posItems[i].item_id == item_id) {
+	                        tax_information = posItems[i].tax_information;
+	                        /*added_new_zakir*/
+	                        product_type = Number(posItems[i].product_type);
+	                        product_comb = (posItems[i].product_comb);
+	                        is_promo = (posItems[i].is_promo);
+	                        promo_type = (posItems[i].promo_type);
+	                        string_text = (posItems[i].string_text);
+	                        discount = (posItems[i].discount);
+	                        get_food_menu_id = (posItems[i].get_food_menu_id);
+	                        qty = (posItems[i].qty);
+	                        get_qty = (posItems[i].get_qty);
+	                        modal_item_name_row = (posItems[i].modal_item_name_row);
+	                        /*end_added_new_zakir*/
+	                    }
+	                }
+	  
+	              if(status_continue==true){
+	                  if(is_variation=="Yes") {
+                          if (!clickedItemDetails) {
+                              toastr['error']("Item details are still loading. Please refresh the POS screen.", '');
+                              return false;
+                          }
+	                      $("#is_variation_product").html(100);
+	                      openProductEditModal(item_id,item_name,item_id);
                   }else if(is_promo=="Yes"){
                       $("#is_variation_product").html(0);
                       $("#modal_item_is_offer").html('Yes');
@@ -5864,13 +5886,13 @@
                       }else if (selected_order_type_object.attr("data-id") == "take_away_button"){
                           item_price = parseFloat($(this).attr('data-price_take')).toFixed(ir_precision);
                       }else if (selected_order_type_object.attr("data-id") == "delivery_button"){
-                          let arr_item_details = search_by_menu_id(item_id, window.items);
+	                          let arr_item_details = search_by_menu_id(item_id, getPosItems());
                           let check_dl_person = 1;
                           item_price = parseFloat($(this).attr('data-price_delivery')).toFixed(ir_precision);
                           $(".custom_li").each(function() {
                               let row_div =  $(this).attr("data-row");
                               if($("#myCheckbox"+row_div).is(":checked")){
-                                  let  price_delivery_details_tmp  = arr_item_details[0].price_delivery_details.split("|||");
+	                                  let  price_delivery_details_tmp  = (arr_item_details[0] && arr_item_details[0].price_delivery_details ? arr_item_details[0].price_delivery_details : "").split("|||");
   
                                   for(let x=0;x<price_delivery_details_tmp.length;x++){
                                       let  price_delivery_details_tmp_separate  = price_delivery_details_tmp[x].split("||");
@@ -5893,13 +5915,13 @@
                       }else if (selected_order_type_object.attr("data-id") == "take_away_button"){
                           item_price = parseFloat($(this).attr('data-price_take')).toFixed(ir_precision);
                       }else if (selected_order_type_object.attr("data-id") == "delivery_button"){
-                          let arr_item_details = search_by_menu_id(item_id, window.items);
+	                          let arr_item_details = search_by_menu_id(item_id, getPosItems());
                           let check_dl_person = 1;
                           item_price = parseFloat($(this).attr('data-price_delivery')).toFixed(ir_precision);
                           $(".custom_li").each(function() {
                               let row_div =  $(this).attr("data-row");
                               if($("#myCheckbox"+row_div).is(":checked")){
-                                  let  price_delivery_details_tmp  = arr_item_details[0].price_delivery_details.split("|||");
+	                                  let  price_delivery_details_tmp  = (arr_item_details[0] && arr_item_details[0].price_delivery_details ? arr_item_details[0].price_delivery_details : "").split("|||");
                                   for(let x=0;x<price_delivery_details_tmp.length;x++){
                                       let  price_delivery_details_tmp_separate  = price_delivery_details_tmp[x].split("||");
                                       if("index_"+row_div == price_delivery_details_tmp_separate[0]){
@@ -6041,9 +6063,10 @@
                           '">' +
                           item_total_price_without_discount +
                           "</span>";
-                      $("#is_variation_product").html(search_by_menu_id_getting_parent_id(item_id, window.items));
-                      draw_table_for_order +=
-                          '<div class="single_order_column first_column cart_item_counter  arabic_text_left fix" data-id="'+item_id+'"><i  data-parent_id="'+search_by_menu_id_getting_parent_id(item_id, window.items)+'"   class="fas fa-pencil-alt edit_item txt_5" id="edit_item_' +
+                          let parent_id_for_cart = search_by_menu_id_getting_parent_id(item_id, getPosItems());
+	                      $("#is_variation_product").html(parent_id_for_cart);
+	                      draw_table_for_order +=
+	                          '<div class="single_order_column first_column cart_item_counter  arabic_text_left fix" data-id="'+item_id+'"><i  data-parent_id="'+parent_id_for_cart+'"   class="fas fa-pencil-alt edit_item txt_5" id="edit_item_' +
                           item_id +
                           '"></i> <span class="arabic_text_left 1_cp_name_'+item_id+'"  id="item_name_table_' +
                           item_id +
