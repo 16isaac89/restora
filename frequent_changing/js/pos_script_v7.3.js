@@ -590,6 +590,18 @@
           }
           return null;
       }
+      function getPosItemDetailsById(item_id) {
+          let posItem = getPosItemById(item_id);
+          return posItem ? posItem : {};
+      }
+      function getPosItemModifiersById(item_id) {
+          let posItem = getPosItemDetailsById(item_id);
+          return Array.isArray(posItem.modifiers) ? posItem.modifiers : [];
+      }
+      function getPosItemParentIdById(item_id) {
+          let posItem = getPosItemDetailsById(item_id);
+          return posItem && posItem.parent_id != null ? posItem.parent_id : "";
+      }
       getPosItems();
       function status_self_order_checker() {
           $(".status_self_order").each(function() {
@@ -1606,7 +1618,7 @@
                                             modifier_prices_custom = this_item.modifiers_price.split(',');
                                         }
     
-                                        let alternative_name = getAlternativeNameById(this_item.food_menu_id, window.items);
+                                        let alternative_name = getAlternativeNameById(this_item.food_menu_id, getPosItems());
                                         let i = 1;
                                         total_item_counter+=Number(this_item.qty);
                                         item_html+=`<tr>`;
@@ -2554,7 +2566,7 @@
                       modifier_names_custom = this_item.modifiers_name.split(',');
                       modifier_prices_custom = this_item.modifiers_price.split(',');
                   }
-                  let alternative_name = getAlternativeNameById(this_item.food_menu_id, window.items);
+                  let alternative_name = getAlternativeNameById(this_item.food_menu_id, getPosItems());
                   let i = 1;
                   total_item_counter+=Number(this_item.qty);
                   row_of_item+=`<tr>`;
@@ -2766,7 +2778,7 @@
             let i = 1;
             total_item_counter+=Number(this_item.qty);
             let discount_value = Number(this_item.item_discount_amount) ? "(-"+getAmount(this_item.item_discount_amount)+")": '';
-            let alternative_name = getAlternativeNameById(this_item.food_menu_id, window.items);
+            let alternative_name = getAlternativeNameById(this_item.food_menu_id, getPosItems());
             invoice_print+=`<tr>`;
             invoice_print+=`<td class="no-border border-bottom ir_wid_90"># `+sl+`:`+this_item.menu_name+alternative_name;
             invoice_print+=`<small></small> &nbsp;&nbsp;`+ this_item.qty + `&nbsp;X&nbsp;`+getAmount(this_item.menu_unit_price)+discount_value ;
@@ -3105,7 +3117,7 @@
             let i = 1;
             total_item_counter+=Number(this_item.qty);
             let discount_value = Number(this_item.item_discount_amount) ? "(-"+getAmount(this_item.item_discount_amount)+")": '';
-            let alternative_name = getAlternativeNameById(this_item.food_menu_id, window.items);
+            let alternative_name = getAlternativeNameById(this_item.food_menu_id, getPosItems());
            
             invoice_print+=`<tr>`;
             invoice_print+=`<td class="no-border border-bottom ir_wid_90"># `+sl+`:`+this_item.menu_name+alternative_name;
@@ -5525,7 +5537,7 @@
             $("#modal_item_note").val(note);
             $("#modal_total_price").html(total_price);
             //add modifiers to pop up associated to menu
-            let foundItems_variations = get_variations_search_by_menu_id(menu_id, window.items);
+            let foundItems_variations = get_variations_search_by_menu_id(menu_id, getPosItems());
   
             let variations = "";
             for (let key1 in foundItems_variations) {
@@ -5536,13 +5548,13 @@
                 }else if (vr01_selected_order_type_object.attr("data-id") == "take_away_button"){
                     item_price = parseFloat(foundItems_variations[key1].price_take).toFixed(ir_precision);
                 }else if (vr01_selected_order_type_object.attr("data-id") == "delivery_button"){
-                    let arr_item_details = search_by_menu_id(foundItems_variations[key1].item_id, window.items);
+                    let arr_item_details = search_by_menu_id(foundItems_variations[key1].item_id, getPosItems());
                     let check_dl_person = 1;
-                    item_price = arr_item_details[0].price_delivery;
+                    item_price = arr_item_details.length > 0 && arr_item_details[0].price_delivery != null ? arr_item_details[0].price_delivery : item_price;
                     $(".custom_li").each(function() {
                         let row_div =  $(this).attr("data-row");
                         if($("#myCheckbox"+row_div).is(":checked")){
-                            let  price_delivery_details_tmp  = arr_item_details[0].price_delivery_details.split("|||");
+                            let  price_delivery_details_tmp  = (arr_item_details[0] && arr_item_details[0].price_delivery_details ? arr_item_details[0].price_delivery_details : "").split("|||");
                             for(let x=0;x<price_delivery_details_tmp.length;x++){
                                 let  price_delivery_details_tmp_separate  = price_delivery_details_tmp[x].split("||");
                                 if("index_"+row_div == price_delivery_details_tmp_separate[0]){
@@ -5569,8 +5581,7 @@
                 variations += "</div>";
             }
   
-            let foundItems = search_by_menu_id(menu_id, window.items);
-            let originalMenu = foundItems[0].modifiers;
+            let originalMenu = getPosItemModifiersById(menu_id);
             let modifiers = "";
             let modifiers_single = "";
             for (let key in originalMenu) {
@@ -5711,8 +5722,7 @@
             $("#modal_item_note").val(note);
             $("#modal_total_price").html(total_price);
   
-            let foundItems = search_by_menu_id(menu_id, window.items);
-            let originalMenu = foundItems[0].modifiers;
+            let originalMenu = getPosItemModifiersById(menu_id);
             let modifiers = "";
   
             for (let key in originalMenu) {
@@ -6279,7 +6289,7 @@
               $(".variation_div_modal").show();
               $("#is_variation_product").html(parent_id);
   
-              let foundItems_variations = get_variations_search_by_menu_id(parent_id, window.items);
+              let foundItems_variations = get_variations_search_by_menu_id(parent_id, getPosItems());
   
               let variations = "";
               for (let key1 in foundItems_variations) {
@@ -6418,18 +6428,19 @@
         let qty = 0;
         let get_qty = 0;
   
-        for (let i = 0; i < window.items.length; i++) {
+        let posItems = getPosItems();
+        for (let i = 0; i < posItems.length; i++) {
             // look for the entry with a matching `code` value
-            if (items[i].item_id == menu_id) {
-                product_type = Number(items[i].product_type);
-                product_comb = (items[i].product_comb);
-                is_promo = (items[i].is_promo);
-                promo_type = (items[i].promo_type);
-                string_text = (items[i].string_text);
-                discount = (items[i].discount);
-                get_food_menu_id = (items[i].get_food_menu_id);
-                qty = (items[i].qty);
-                get_qty = (items[i].get_qty);
+            if (posItems[i].item_id == menu_id) {
+                product_type = Number(posItems[i].product_type);
+                product_comb = (posItems[i].product_comb);
+                is_promo = (posItems[i].is_promo);
+                promo_type = (posItems[i].promo_type);
+                string_text = (posItems[i].string_text);
+                discount = (posItems[i].discount);
+                get_food_menu_id = (posItems[i].get_food_menu_id);
+                qty = (posItems[i].qty);
+                get_qty = (posItems[i].get_qty);
             }
         }
   
@@ -6460,9 +6471,7 @@
           $("#discount_reason").val(discount_reason);
           $("#modal_total_price").html(total_price);
           //add modifiers to pop up associated to menu
-          let foundItems = search_by_menu_id(menu_id, window.items);
-  
-          let originalMenu = foundItems[0].modifiers;
+          let originalMenu = getPosItemModifiersById(menu_id);
           let modifiers = "";
           for (let key in originalMenu) {
               let selectedOrNot = "unselected";
@@ -6537,8 +6546,7 @@
           }
   
           if(parent_id){
-              foundItems = search_by_menu_id(parent_id, window.items);
-              originalMenu = foundItems[0].modifiers;
+              originalMenu = getPosItemModifiersById(parent_id);
               modifiers = "";
               for (let key in originalMenu) {
                   let selectedOrNot = "unselected";
@@ -6731,19 +6739,20 @@
             let qty = 0;
             let get_qty = 0;
             let modal_item_name_row = '';
-            for (let i = 0; i < window.items.length; i++) {
+            let posItems = getPosItems();
+            for (let i = 0; i < posItems.length; i++) {
                 // look for the entry with a matching `code` value
-                if (items[i].item_id == item_id) {
-                    product_type = Number(items[i].product_type);
-                    product_comb = (items[i].product_comb);
-                    is_promo = (items[i].is_promo);
-                    promo_type = (items[i].promo_type);
-                    string_text = (items[i].string_text);
-                    discount = (items[i].discount);
-                    get_food_menu_id = (items[i].get_food_menu_id);
-                    qty = (items[i].qty);
-                    get_qty = (items[i].get_qty);
-                    modal_item_name_row = (items[i].modal_item_name_row);
+                if (posItems[i].item_id == item_id) {
+                    product_type = Number(posItems[i].product_type);
+                    product_comb = (posItems[i].product_comb);
+                    is_promo = (posItems[i].is_promo);
+                    promo_type = (posItems[i].promo_type);
+                    string_text = (posItems[i].string_text);
+                    discount = (posItems[i].discount);
+                    get_food_menu_id = (posItems[i].get_food_menu_id);
+                    qty = (posItems[i].qty);
+                    get_qty = (posItems[i].get_qty);
+                    modal_item_name_row = (posItems[i].modal_item_name_row);
                     /*end_added_new_zakir*/
                 }
             }
@@ -8025,10 +8034,11 @@
                 });
   
                 let tax_information_item = "";
-                for (let i = 0; i < window.items.length; i++) {
+                let posItems = getPosItems();
+                for (let i = 0; i < posItems.length; i++) {
                     // look for the entry with a matching `code` value
-                    if (items[i].item_id == item_id) {
-                        tax_information_item = items[i].tax_information;
+                    if (posItems[i].item_id == item_id) {
+                        tax_information_item = posItems[i].tax_information;
                     }
                 }
   
@@ -8105,11 +8115,12 @@
                     '">' +
                     item_total_price_without_discount +
                     "</span>";
-                $("#is_variation_product").html(search_by_menu_id_getting_parent_id(item_id, window.items));
+                let parent_item_id = getPosItemParentIdById(item_id);
+                $("#is_variation_product").html(parent_item_id);
   
   
                 draw_table_for_order +=
-                    '<div class="single_order_column first_column cart_item_counter  arabic_text_left fix"  data-id="'+item_id+'"><i data-parent_id="'+search_by_menu_id_getting_parent_id(item_id, window.items)+'" data-modal_item_is_offer="'+modal_item_is_offer+'" class="fas fa-pencil-alt edit_item txt_5" id="edit_item_' +
+                    '<div class="single_order_column first_column cart_item_counter  arabic_text_left fix"  data-id="'+item_id+'"><i data-parent_id="'+parent_item_id+'" data-modal_item_is_offer="'+modal_item_is_offer+'" class="fas fa-pencil-alt edit_item txt_5" id="edit_item_' +
                     item_id +
                     '"></i> <span class="arabic_text_left 1_cp_name_'+item_id+'"  id="item_name_table_' +
                     item_id +
@@ -8339,19 +8350,20 @@
             let get_qty = 0;
             let modal_item_name_row = '';
             let draw_table_for_order = ''
-            for (let i = 0; i < window.items.length; i++) {
+            let posItems = getPosItems();
+            for (let i = 0; i < posItems.length; i++) {
                 // look for the entry with a matching `code` value
-                if (items[i].item_id == Number(item_id)) {
-                    product_type = Number(items[i].product_type);
-                    product_comb = (items[i].product_comb);
-                    is_promo = (items[i].is_promo);
-                    promo_type = Number((items[i].promo_type));
-                    string_text = (items[i].string_text);
-                    discount = (items[i].discount);
-                    get_food_menu_id = (items[i].get_food_menu_id);
-                    qty = (items[i].qty);
-                    get_qty = (items[i].get_qty);
-                    modal_item_name_row = (items[i].modal_item_name_row);
+                if (posItems[i].item_id == Number(item_id)) {
+                    product_type = Number(posItems[i].product_type);
+                    product_comb = (posItems[i].product_comb);
+                    is_promo = (posItems[i].is_promo);
+                    promo_type = Number((posItems[i].promo_type));
+                    string_text = (posItems[i].string_text);
+                    discount = (posItems[i].discount);
+                    get_food_menu_id = (posItems[i].get_food_menu_id);
+                    qty = (posItems[i].qty);
+                    get_qty = (posItems[i].get_qty);
+                    modal_item_name_row = (posItems[i].modal_item_name_row);
                     /*end_added_new_zakir*/
                 }
             }
@@ -9271,7 +9283,9 @@
                               parseFloat(item_price_without_discount) -
                               parseFloat(item_price_with_discount)
                           ).toFixed(ir_precision);
-                          let kitchen_details_1 = search_by_menu_id(item_id, window.items);
+                          let kitchen_details_1 = search_by_menu_id(item_id, getPosItems());
+                          let kitchen_id_1 = kitchen_details_1.length > 0 && kitchen_details_1[0].kitchen_id != null ? kitchen_details_1[0].kitchen_id : "";
+                          let kitchen_name_1 = kitchen_details_1.length > 0 && kitchen_details_1[0].kitchen_name != null ? kitchen_details_1[0].kitchen_name : "";
                    
                           items_info +=
                               '{"food_menu_id":"' +
@@ -9280,8 +9294,8 @@
                               '", "is_print":"' + 1 +
                               '", "is_kot_print":"' + is_kot_print +
                               '", "menu_name":"' + item_name +
-                              '", "kitchen_id":"' + kitchen_details_1[0].kitchen_id +
-                              '", "kitchen_name":"' + kitchen_details_1[0].kitchen_name +
+                              '", "kitchen_id":"' + kitchen_id_1 +
+                              '", "kitchen_name":"' + kitchen_name_1 +
                               '", "is_free":"0", "rounding_amount_hidden":"0", "item_vat":' +
                               item_vat +
                               ",";
@@ -9383,15 +9397,17 @@
                               let free_item_quantity_table = $("#free_item_quantity_table_"+item_id).html();
                               let free_item_name_table = $("#free_item_name_table_"+item_id).html();
   
-                              let kitchen_details_2 = search_by_menu_id(item_id, window.items);
+                              let kitchen_details_2 = search_by_menu_id(item_id, getPosItems());
+                              let kitchen_id_2 = kitchen_details_2.length > 0 && kitchen_details_2[0].kitchen_id != null ? kitchen_details_2[0].kitchen_id : "";
+                              let kitchen_name_2 = kitchen_details_2.length > 0 && kitchen_details_2[0].kitchen_name != null ? kitchen_details_2[0].kitchen_name : "";
   
                               items_info +=
                                   '{"food_menu_id":"' +
                                   get_fm_id +
                                   '", "is_print":"' + 1 +
                                   '", "menu_name":"' + free_item_name_table +
-                                  '", "kitchen_id":"' + kitchen_details_2[0].kitchen_id +
-                                  '", "kitchen_name":"' + kitchen_details_2[0].kitchen_name +
+                                  '", "kitchen_id":"' + kitchen_id_2 +
+                                  '", "kitchen_name":"' + kitchen_name_2 +
                                   '", "parent_food_id":"' + item_id+
                                   '", "is_free":"1", "rounding_amount_hidden":"0", "item_vat":' +
                                   item_vat +
@@ -14801,20 +14817,21 @@
           let get_qty = 0;
           let modal_item_name_row = '';
           let draw_table_for_order = ''
-          if(window.items){
-              for (let i = 0; i < window.items.length; i++) {
+          let posItems = getPosItems();
+          if(posItems){
+              for (let i = 0; i < posItems.length; i++) {
                   // look for the entry with a matching `code` value
-                  if (items[i].item_id == Number(item_id)) {
-                      product_type = Number(items[i].product_type);
-                      product_comb = (items[i].product_comb);
-                      is_promo = (items[i].is_promo);
-                      promo_type = Number((items[i].promo_type));
-                      string_text = (items[i].string_text);
-                      discount = (items[i].discount);
-                      get_food_menu_id = (items[i].get_food_menu_id);
-                      qty = (items[i].qty);
-                      get_qty = (items[i].get_qty);
-                      modal_item_name_row = (items[i].modal_item_name_row);
+                  if (posItems[i].item_id == Number(item_id)) {
+                      product_type = Number(posItems[i].product_type);
+                      product_comb = (posItems[i].product_comb);
+                      is_promo = (posItems[i].is_promo);
+                      promo_type = Number((posItems[i].promo_type));
+                      string_text = (posItems[i].string_text);
+                      discount = (posItems[i].discount);
+                      get_food_menu_id = (posItems[i].get_food_menu_id);
+                      qty = (posItems[i].qty);
+                      get_qty = (posItems[i].get_qty);
+                      modal_item_name_row = (posItems[i].modal_item_name_row);
                       /*end_added_new_zakir*/
                   }
               }
@@ -15486,7 +15503,7 @@
     });
   
     function searchItemAndConstructGallery(searchedValue) {
-      let resultObject = search(searchedValue, window.items);
+      let resultObject = search(searchedValue, getPosItems());
       return resultObject;
     }
     function searchCustomerAddress(searchValue) {
@@ -20178,19 +20195,20 @@
           let modal_item_name_row = '';
           let draw_table_for_order = '';
   
-          for (let i = 0; i < window.items.length; i++) {
+          let posItems = getPosItems();
+          for (let i = 0; i < posItems.length; i++) {
               // look for the entry with a matching `code` value
-              if (items[i].item_id == Number(item_id)) {
-                  product_type = Number(items[i].product_type);
-                  product_comb = (items[i].product_comb);
-                  is_promo = (items[i].is_promo);
-                  promo_type = Number((items[i].promo_type));
-                  string_text = (items[i].string_text);
-                  discount = (items[i].discount);
-                  get_food_menu_id = (items[i].get_food_menu_id);
-                  qty = (items[i].qty);
-                  get_qty = (items[i].get_qty);
-                  modal_item_name_row = (items[i].modal_item_name_row);
+              if (posItems[i].item_id == Number(item_id)) {
+                  product_type = Number(posItems[i].product_type);
+                  product_comb = (posItems[i].product_comb);
+                  is_promo = (posItems[i].is_promo);
+                  promo_type = Number((posItems[i].promo_type));
+                  string_text = (posItems[i].string_text);
+                  discount = (posItems[i].discount);
+                  get_food_menu_id = (posItems[i].get_food_menu_id);
+                  qty = (posItems[i].qty);
+                  get_qty = (posItems[i].get_qty);
+                  modal_item_name_row = (posItems[i].modal_item_name_row);
                   /*end_added_new_zakir*/
               }
           }
