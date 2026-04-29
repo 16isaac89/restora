@@ -357,6 +357,64 @@
           return normalized_item;
       }
 
+      function buildKotRelayItemsText(order) {
+          let lines = [];
+          let items = Array.isArray(order && order.items) ? order.items : [];
+          let count = 1;
+          items.forEach(function (item) {
+              if (!item) {
+                  return;
+              }
+              let qty = Number(item.qty || 0);
+              if (qty <= 0) {
+                  return;
+              }
+              let item_name = item.menu_name || ("Item #" + (item.food_menu_id || ""));
+              let alternative_name = getAlternativeNameById(item.food_menu_id, getPosItems());
+              lines.push("#" + count + " " + item_name + alternative_name + ": " + qty);
+              if (item.menu_combo_items) {
+                  lines.push("   " + combo_txt + ": " + item.menu_combo_items);
+              }
+              if (item.menu_note) {
+                  lines.push("   " + note_txt + ": " + item.menu_note);
+              }
+              let modifier_names = [];
+              if (Array.isArray(item.modifiers) && item.modifiers.length) {
+                  item.modifiers.forEach(function (modifier) {
+                      if (modifier && modifier.name) {
+                          modifier_names.push(modifier.name);
+                      }
+                  });
+              } else if (item.modifiers_name) {
+                  modifier_names = String(item.modifiers_name).split(",");
+              }
+              modifier_names.forEach(function (modifier_name) {
+                  if (modifier_name) {
+                      lines.push("   " + modifier_name);
+                  }
+              });
+              count++;
+          });
+          return lines.length ? "\n" + lines.join("\n") + "\n" : "\n";
+      }
+
+      function buildKotRelayPayloadFromPopupRecords(records, kot_print) {
+          let payload = [];
+          (records || []).forEach(function (record) {
+              let relay_record = $.extend(true, {}, record || {});
+              relay_record.items = buildKotRelayItemsText({
+                  items: Array.isArray(record && record.items) ? record.items.map(function (item) {
+                      let normalized_item = normalizeKotPrintItem(item);
+                      let qty = Number(kot_print) === 2 ? Number(normalized_item.tmp_qty || 0) : Number(normalized_item.qty || 0);
+                      normalized_item.qty = qty;
+                      return normalized_item;
+                  }) : []
+              });
+              payload.push(relay_record);
+          });
+          return payload;
+      }
+
       function getAggregatedKotItems(order_items, kot_print) {
           let grouped_items = {};
           let grouped_order = [];
@@ -1779,7 +1837,9 @@
           if(is_print){
                         let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
                         let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
-                        let network_print_data = content_data_direct_print.length ? content_data_direct_print : content_data_popup_print;
+                        let network_print_data = content_data_direct_print.length
+                            ? content_data_direct_print
+                            : buildKotRelayPayloadFromPopupRecords(content_data_popup_print, 1);
                         let hasDirectPrint = false;
                         let hasPopupPrint = content_data_popup_print.length > 0;
 
@@ -11680,7 +11740,9 @@
           let popup_only_mode = (server_kot_mode === "web_browser_popup");
           let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
           let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
-          let network_print_data = content_data_direct_print.length ? content_data_direct_print : content_data_popup_print;
+          let network_print_data = content_data_direct_print.length
+              ? content_data_direct_print
+              : buildKotRelayPayloadFromPopupRecords(content_data_popup_print, Number($("#kot_print").val()));
           let printed_to_network = false;
           if(!popup_only_mode){
             for (let key in (network_print_data || {})) {
@@ -16864,9 +16926,11 @@
                                     dataType: "json",
                                     data: {selected_order_no: (selected_order_no),kitchen_id: kitchen_id,kot_print: 1},
                                     success: function (data) {
-                                    let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
-                                    let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
-                                    let network_print_data = content_data_direct_print.length ? content_data_direct_print : content_data_popup_print;
+          let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
+          let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
+          let network_print_data = content_data_direct_print.length
+              ? content_data_direct_print
+              : buildKotRelayPayloadFromPopupRecords(content_data_popup_print, 1);
                                     for (let key in network_print_data) {
                                         if(network_print_data[key].ipvfour_address){
                                             let target_server_url = network_print_data[key].ipvfour_address || data.printer_server_url;
