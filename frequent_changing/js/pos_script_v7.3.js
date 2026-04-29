@@ -1777,17 +1777,19 @@
                     toastr['error']((data.invoice_msg), ''); 
                 }else{
           if(is_print){
-                        let content_data_direct_print = data.content_data_direct_print || [];
+                        let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
+                        let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
+                        let network_print_data = content_data_direct_print.length ? content_data_direct_print : content_data_popup_print;
                         let hasDirectPrint = false;
-                        let hasPopupPrint = Array.isArray(data.content_data_popup_print) && data.content_data_popup_print.length > 0;
+                        let hasPopupPrint = content_data_popup_print.length > 0;
 
-                        for (let key in content_data_direct_print) {
-                            if(content_data_direct_print[key].ipvfour_address){
+                        for (let key in network_print_data) {
+                            if(network_print_data[key].ipvfour_address){
                                 hasDirectPrint = true;
-                                let target_server_url = content_data_direct_print[key].ipvfour_address || data.printer_server_url;
+                                let target_server_url = network_print_data[key].ipvfour_address || data.printer_server_url;
                                 relay_print_server_request(
                                   target_server_url,
-                                  "[" + (JSON.stringify(content_data_direct_print[key])) + "]",
+                                  "[" + (JSON.stringify(network_print_data[key])) + "]",
                                   data.print_type,
                                   "[PRINT][KOT][PUSH_ONLINE]"
                                 );
@@ -11676,16 +11678,18 @@
           }
           let server_kot_mode = (data && data.printing_kot_mode) ? data.printing_kot_mode : "";
           let popup_only_mode = (server_kot_mode === "web_browser_popup");
-          let content_data_direct_print = data.content_data_direct_print;
+          let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
+          let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
+          let network_print_data = content_data_direct_print.length ? content_data_direct_print : content_data_popup_print;
           let printed_to_network = false;
           if(!popup_only_mode){
-            for (let key in (content_data_direct_print || {})) {
-              if(content_data_direct_print[key].ipvfour_address){
+            for (let key in (network_print_data || {})) {
+              if(network_print_data[key].ipvfour_address){
                 printed_to_network = true;
-                let target_server_url = content_data_direct_print[key].ipvfour_address || data.printer_server_url;
+                let target_server_url = network_print_data[key].ipvfour_address || data.printer_server_url;
                 relay_print_server_request(
                   target_server_url,
-                  "[" + (JSON.stringify(content_data_direct_print[key])) + "]",
+                  "[" + (JSON.stringify(network_print_data[key])) + "]",
                   data.print_type,
                   "[PRINT][KOT]"
                 );
@@ -11699,8 +11703,8 @@
           getSelectedOrderDetails(selected_order_no).then(function (order_data) {
             if (order_data && order_data.order !== null) {
               print_kot_print(order_data.order, kot_print);
-            } else if (Array.isArray(data.content_data_popup_print) && data.content_data_popup_print.length) {
-              print_kot_popup_print(data.content_data_popup_print || [],0);
+            } else if (content_data_popup_print.length) {
+              print_kot_popup_print(content_data_popup_print || [],0);
             }
           });
         },
@@ -16860,13 +16864,15 @@
                                     dataType: "json",
                                     data: {selected_order_no: (selected_order_no),kitchen_id: kitchen_id,kot_print: 1},
                                     success: function (data) {
-                                    let content_data_direct_print = data.content_data_direct_print;
-                                    for (let key in content_data_direct_print) {
-                                        if(content_data_direct_print[key].ipvfour_address){
-                                            let target_server_url = content_data_direct_print[key].ipvfour_address || data.printer_server_url;
+                                    let content_data_direct_print = Array.isArray(data.content_data_direct_print) ? data.content_data_direct_print : [];
+                                    let content_data_popup_print = Array.isArray(data.content_data_popup_print) ? data.content_data_popup_print : [];
+                                    let network_print_data = content_data_direct_print.length ? content_data_direct_print : content_data_popup_print;
+                                    for (let key in network_print_data) {
+                                        if(network_print_data[key].ipvfour_address){
+                                            let target_server_url = network_print_data[key].ipvfour_address || data.printer_server_url;
                                             relay_print_server_request(
                                               target_server_url,
-                                              "[" + (JSON.stringify(content_data_direct_print[key])) + "]",
+                                              "[" + (JSON.stringify(network_print_data[key])) + "]",
                                               data.print_type,
                                               "[PRINT][KOT][SELF_ONLINE]"
                                             );
@@ -16876,7 +16882,7 @@
                                     if (order_data && order_data.order !== null) {
                                         print_kot_print(order_data.order, 1);
                                     } else {
-                                        print_kot_popup_print(data.content_data_popup_print,0);
+                                        print_kot_popup_print(content_data_popup_print,0);
                                     }
                                     });
                                     },
