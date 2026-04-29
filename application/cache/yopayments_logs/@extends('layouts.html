@@ -1,0 +1,391 @@
+@extends('layouts.innovator')
+@section('title', 'Team Members')
+@section('styles')
+<style>
+    .member-name {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .member-name img {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    @media (min-width: 768px) {
+        .truncate {
+            white-space: normal;
+        }
+    }
+</style>
+@endsection
+@section('content')
+<div class="containern mx-auto px- py-">
+    <div class="d-flex justify-content-between align-items-center">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+
+                    <li class="breadcrumb-item"><a href="{{ url('/') }}">Overview</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Team Management</li>
+                </ol>
+            </nav>
+
+            <div class="text-end ml-2">
+                <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                        <i class="fas fa-plus me-1"></i>
+                        Add Team Member
+                    </a>
+            </div>
+        </div>
+    <!-- <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Team Management</h1>
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow transition duration-200"
+                data-bs-toggle="modal" data-bs-target="#addMemberModal">
+            Add Team Member
+        </button>
+    </div> -->
+
+    <div class="bg-white rounded-lg shadow overflow-hidden mt-4">
+
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 table table-responsive table-stripped">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
+                            Full Name
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
+                            Role
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Description
+                        </th>
+                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Member Type
+                        </th>
+                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Gender
+                        </th>
+                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Persons with Disability
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @foreach($team as $member)
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <img class="h-10 w-10 rounded-full"
+                                         src="{{ $member['profileImage'] ?: 'https://www.gravatar.com/avatar/148499edab996622ce1a7509b451b61c?s=80&amp;d=mm&amp;r=g' }}"
+                                         alt="{{ $member['first_name'].' '.$member['last_name'] }}">
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ $member['first_name'].' '.$member['last_name'] }}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ $member['role'] }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            <div class="max-w-xs truncate">{{ $member['description'] }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            <div class="max-w-xs truncate">{{ $member['member_type'] }}</div>
+                        </td>
+                         <td class="px-6 py-4 text-sm text-gray-500">
+                            <div class="max-w-xs truncate">{{ \Str::ucfirst($member['gender'])  }}</div>
+                        </td>
+                         <td class="px-6 py-4 text-sm text-gray-500">
+                            <div class="max-w-xs truncate">{{ \Str::ucfirst($member['pwd'])  }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <button class="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition" style="background-color: #0000cc !import"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editMemberModal"
+                                        onclick="fillEditForm({{ json_encode($member) }},'{{ $member?->profile_picture?->getUrl() }}')">
+                                    <!-- <i class="nav-icon fas fa-edit w-6 text-lg text-black"></i> -->
+                                    Edit
+                                </button>
+                                <form method="POST" action="{{ route('innovator.team.destroy', $member['reference']) }}"
+                                      class="inline"
+                                      onsubmit="return confirm('Are you sure you want to delete this team member?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="flex items-center gap-1 bg-red hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition">
+                                        <!-- <i class="nav-icon fas fa-trash w-6 text-lg text-black"></i> -->
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Adding Team Member -->
+<div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-blue-600 text-white p-4 rounded-t-lg" style="background-color: #0000cc !important">
+                <h5 class="modal-title text-lg font-semibold" id="addMemberModalLabel">Add Team Member</h5>
+                <!-- <button type="button" class="text-white hover:text-gray-200 focus:outline-none" data-bs-dismiss="modal" aria-label="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button> -->
+            </div>
+            <div class="modal-body p-6">
+                <form method="POST" action="{{ route('innovator.team.store') }}" enctype="multipart/form-data">
+                    @csrf
+                    @if(\Auth::guard('innovator')->user()->application?->entry_type == 'ideation')
+                    <div class="mb-4">
+                        <label for="knowledgeable" class="block text-sm font-medium text-gray-700 mb-1">Knowledgeable</label>
+                        <select name="knowledgeable" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                {{ \Auth::guard('innovator')->user()->application?->entry_type == 'ideation' ? 'required' : '' }}>
+                            <option value="" selected>Select answer here........</option>
+                            <option value="yes">Yes</option>
+                            <option value="no">No</option>
+                        </select>
+                    </div>
+                    @endif
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                            <input type="text" name="first_name" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            <input type="text" name="last_name" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" name="email" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <input type="text" name="role" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                    </div>
+                    {{-- add select for member_type with values for Employee,intern, volunteer, other --}}
+                    <div class="mb-4">
+                        <label for="member_type" class="block text-sm font-medium text-gray-700 mb-1">Team Member Type</label>
+                        <select name="member_type" id="member_type" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" selected>Select member type...</option>
+                            <option value="Employee">Employee</option>
+                            <option value="Intern">Intern</option>
+                            <option value="Volunteer">Volunteer</option>
+                            <option value="Founder">Founder</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="member_type" class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                        <select name="gender" id="gender" class="w-full px-3 py-2 border rounded-md focus:outline-none
+                        focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" selected>Select gender...</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                     <div class="mb-4">
+                        <label for="pwd" class="block text-sm font-medium text-gray-700 mb-1">Person with Disability</label>
+                        <select name="pwd" id="pwd" class="w-full px-3 py-2 border rounded-md focus:outline-none
+                        focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" selected>Select answer...</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea name="description" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" required></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="profileImage" class="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
+                        <input type="file" name="profileImage" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="codeofconduct" class="block text-sm font-medium text-gray-700 mb-1">Signed Code of Conduct</label>
+                        <input type="file" name="codeofconduct" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="modal-footerftrt flex justify-end space-x-3 mt-6">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue text-white rounded-md hover:bg-blue-700 transition">
+                            Add Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Editing Team Member -->
+<div class="modal fade" id="editMemberModal" tabindex="-1" aria-labelledby="editMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-blue text-white p-4 rounded-t-lg" style="background-color: #0000cc !important">
+                <h5 class="modal-title text-lg font-semibold" id="editMemberModalLabel">Edit Team Member</h5>
+                <!-- <button type="button" class="text-white hover:text-gray-200 focus:outline-none" data-bs-dismiss="modal" aria-label="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button> -->
+            </div>
+            <div class="modal-body p-6">
+                <div class="flex justify-center mb-4">
+                    <img id="editProfileImage" class="rounded-full h-24 w-24 object-cover" alt="Profile Image">
+                </div>
+                <form method="POST" id="editMemberForm" enctype="multipart/form-data">
+                    @csrf
+                    @method('PUT')
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="editFirstName" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                            <input type="text" id="editFirstName" name="first_name" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                        <div>
+                            <label for="editLastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            <input type="text" id="editLastName" name="last_name" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="editEmail" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="editEmail" name="email"
+                         class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="editRole" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                        <input type="text" id="editRole" name="role" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="member_type" class="block text-sm font-medium text-gray-700 mb-1">Team Member Type</label>
+                        <select name="member_type" id="member_type" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" selected>Select member type...</option>
+                            <option value="Employee">Employee</option>
+                            <option value="Intern">Intern</option>
+                            <option value="Founder">Founder</option>
+                            <option value="Volunteer">Volunteer</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="pwd" class="block text-sm font-medium text-gray-700 mb-1">Person with Disability</label>
+                        <select name="pwd" id="editpwd" class="w-full px-3 py-2 border rounded-md focus:outline-none
+                        focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" selected>Select answer...</option>
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                     <div class="mb-4">
+                        <label for="member_type" class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                        <select name="gender" id="member_gender" class="w-full px-3 py-2 border rounded-md focus:outline-none
+                        focus:ring-2 focus:ring-blue-500" required>
+                            <option value="" selected>Select gender...</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="editDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea id="editDescription" name="description" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" required></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="editprofileImage" class="block text-sm font-medium text-gray-700 mb-1">Profile Image</label>
+                        <input type="file" name="editprofileImage" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="modal-footerx flex justify-end space-x-3 mt-6">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition" data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition" style="background-color: #0000cc">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+@section('scripts')
+    <script>
+    function fillEditForm(member, profileImageUrl) {
+        document.getElementById('editFirstName').value = member.first_name;
+        document.getElementById('editLastName').value = member.last_name;
+         document.getElementById('editpwd').value = member.pwd || ''; // Set the pwd value
+        document.getElementById('editRole').value = member.role;
+        document.getElementById('editDescription').value = member.description;
+        document.getElementById('editEmail').value = member.email;
+        document.getElementById('member_type').value = member.member_type || ''; // Set the member type
+        document.getElementById('member_gender').value = member.gender || ''; // Set the member gender
+
+        const imgElement = document.getElementById('editProfileImage');
+        imgElement.src = profileImageUrl || 'https://www.gravatar.com/avatar/148499edab996622ce1a7509b451b61c?s=80&d=mm&r=g';
+
+        const form = document.getElementById('editMemberForm');
+        form.action = `/innovator/team/update/${member.reference}`;
+    }
+
+    // Search functionality
+    document.getElementById('teamSearch').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            const name = row.querySelector('.member-name span').textContent.toLowerCase();
+            const role = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const description = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+
+            if (name.includes(searchTerm) || role.includes(searchTerm) || description.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
+@endsection

@@ -463,6 +463,8 @@ class YoPayments {
             'namelookup_time' => isset($curl_info['namelookup_time']) ? $curl_info['namelookup_time'] : null,
             'connect_time' => isset($curl_info['connect_time']) ? $curl_info['connect_time'] : null,
             'starttransfer_time' => isset($curl_info['starttransfer_time']) ? $curl_info['starttransfer_time'] : null,
+            'request_xml' => (string) $xml,
+            'response_xml' => (string) $xml_response,
             'request_excerpt' => substr(preg_replace('/\s+/', ' ', (string) $xml), 0, 500),
             'response_excerpt' => substr(preg_replace('/\s+/', ' ', (string) $xml_response), 0, 500)
         ));

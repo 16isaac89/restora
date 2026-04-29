@@ -4751,9 +4751,6 @@ endif;
 
     <script type="text/javascript" src="<?php echo base_url(); ?>assets/POS/js/howler.min.js"></script>
     <script src="<?php echo base_url(); ?>assets/dist/js/feather.min.js"></script>
-    <script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/pos_script_v7.3.js?v=7.6.2"></script>
-    <script src="<?php echo base_url(); ?>assets/POS/js/media.js"></script>
-    <script type="text/javascript" src="<?php echo base_url(); ?>assets/plugins/notify/jquery.notifyBar.js"></script>
     <script type="text/javascript">
     /*This variable could not be escaped because this is building object*/
     window.customers = [<?php echo ($customer_objects);?>]
@@ -4763,7 +4760,11 @@ endif;
     window.only_modifiers = [<?php echo ($javascript_obects_only_modifier);?>];
     /*This variable could not be escaped because this is building object*/
     window.kitchens = [<?php echo ($kitchens_objects);?>];
-
+    </script>
+    <script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/pos_script_v7.3.js?v=7.6.2"></script>
+    <script src="<?php echo base_url(); ?>assets/POS/js/media.js"></script>
+    <script type="text/javascript" src="<?php echo base_url(); ?>assets/plugins/notify/jquery.notifyBar.js"></script>
+    <script type="text/javascript">
     $('.widthAndHeight').text($(window).width() +'x'+ $(window).height())
 
 
