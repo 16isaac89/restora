@@ -296,7 +296,8 @@ class YoPayments {
     * @return void
     */
     public function set_account_provider_code($account_provider_code){
-        $this->account_provider_code = $account_provider_code;
+        $account_provider_code = strtoupper(trim((string) $account_provider_code));
+        $this->account_provider_code = $account_provider_code !== '' ? $account_provider_code : NULL;
     }
 
     /**
@@ -317,24 +318,28 @@ class YoPayments {
         $xml .= '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<AutoCreate>';
         $xml .= '<Request>';
-        $xml .= '<APIUsername>'.$this->username.'</APIUsername>';
-        $xml .= '<APIPassword>'.$this->password.'</APIPassword>';
+        $xml .= '<APIUsername>'.$this->xml_escape($this->username).'</APIUsername>';
+        $xml .= '<APIPassword>'.$this->xml_escape($this->password).'</APIPassword>';
         $xml .= '<Method>acdepositfunds</Method>';
         $xml .= '<NonBlocking>'.$this->NonBlocking.'</NonBlocking>';
-        $xml .= '<Account>'.$msisdn.'</Account>';
-        $xml .= '<Amount>'.$amount.'</Amount>';
-        if( $this->account_provider_code != NULL ){ $xml .= '<AccountProviderCode>'.$this->account_provider_code.'</AccountProviderCode>'; }
-        $xml .= '<Narrative>'.$narrative.'</Narrative>';
-        if( $this->external_reference != NULL ){ $xml .= '<ExternalReference>'.$this->external_reference.'</ExternalReference>'; }
-        if( $this->internal_reference != NULL ) { $xml .= '<InternalReference>'.$this->internal_reference.'</InternalReference>'; }
-        if( $this->provider_reference_text != NULL ){ $xml .= '<ProviderReferenceText>'.$this->provider_reference_text.'</ProviderReferenceText>'; }
-        if( $this->instant_notification_url != NULL ){ $xml .= '<InstantNotificationUrl>'.$this->instant_notification_url.'</InstantNotificationUrl>'; }
-        if( $this->failure_notification_url != NULL ){ $xml .= '<FailureNotificationUrl>'.$this->failure_notification_url.'</FailureNotificationUrl>'; }
-        if( $this->authentication_signature_base64 != NULL ){ $xml .= '<AuthenticationSignatureBase64>'.$this->authentication_signature_base64.'</AuthenticationSignatureBase64>'; }
+        $xml .= '<Account>'.$this->xml_escape($msisdn).'</Account>';
+        $xml .= '<Amount>'.$this->xml_escape($amount).'</Amount>';
+        if( $this->account_provider_code != NULL ){ $xml .= '<AccountProviderCode>'.$this->xml_escape($this->account_provider_code).'</AccountProviderCode>'; }
+        $xml .= '<Narrative>'.$this->xml_escape($narrative).'</Narrative>';
+        if( $this->external_reference != NULL ){ $xml .= '<ExternalReference>'.$this->xml_escape($this->external_reference).'</ExternalReference>'; }
+        if( $this->internal_reference != NULL ) { $xml .= '<InternalReference>'.$this->xml_escape($this->internal_reference).'</InternalReference>'; }
+        if( $this->provider_reference_text != NULL ){ $xml .= '<ProviderReferenceText>'.$this->xml_escape($this->provider_reference_text).'</ProviderReferenceText>'; }
+        if( $this->instant_notification_url != NULL ){ $xml .= '<InstantNotificationUrl>'.$this->xml_escape($this->instant_notification_url).'</InstantNotificationUrl>'; }
+        if( $this->failure_notification_url != NULL ){ $xml .= '<FailureNotificationUrl>'.$this->xml_escape($this->failure_notification_url).'</FailureNotificationUrl>'; }
+        if( $this->authentication_signature_base64 != NULL ){ $xml .= '<AuthenticationSignatureBase64>'.$this->xml_escape($this->authentication_signature_base64).'</AuthenticationSignatureBase64>'; }
         $xml .= '</Request>';
         $xml .= '</AutoCreate>';
 
         $xml_response = $this->get_xml_response($xml);
+
+        if (!$this->has_valid_xml_response($xml_response)) {
+            return $this->build_transport_error_response($xml_response);
+        }
 
         $simpleXMLObject =  new SimpleXMLElement($xml_response);
         $response = $simpleXMLObject->Response;
@@ -378,16 +383,20 @@ class YoPayments {
         $xml .= '<?xml version="1.0" encoding="UTF-8"?>';
         $xml .= '<AutoCreate>';
         $xml .= '<Request>';
-        $xml .= '<APIUsername>'.$this->username.'</APIUsername>';
-        $xml .= '<APIPassword>'.$this->password.'</APIPassword>';
+        $xml .= '<APIUsername>'.$this->xml_escape($this->username).'</APIUsername>';
+        $xml .= '<APIPassword>'.$this->xml_escape($this->password).'</APIPassword>';
         $xml .= '<Method>actransactioncheckstatus</Method>';
-        if($transaction_reference!=NULL){ $xml .= '<TransactionReference>'.$transaction_reference.'</TransactionReference>'; }
-        if( $private_transaction_reference != NULL ) { $xml .= '<PrivateTransactionReference>'.$private_transaction_reference.'</PrivateTransactionReference>'; }
-        $xml .= '<DepositTransactionType>'.$this->deposit_transaction_type.'</DepositTransactionType>';
+        if($transaction_reference!=NULL){ $xml .= '<TransactionReference>'.$this->xml_escape($transaction_reference).'</TransactionReference>'; }
+        if( $private_transaction_reference != NULL ) { $xml .= '<PrivateTransactionReference>'.$this->xml_escape($private_transaction_reference).'</PrivateTransactionReference>'; }
+        $xml .= '<DepositTransactionType>'.$this->xml_escape($this->deposit_transaction_type).'</DepositTransactionType>';
         $xml .= '</Request>';
         $xml .= '</AutoCreate>';
 
         $xml_response = $this->get_xml_response($xml);
+
+        if (!$this->has_valid_xml_response($xml_response)) {
+            return $this->build_transport_error_response($xml_response);
+        }
 
         $simpleXMLObject =  new SimpleXMLElement($xml_response);
         $response = $simpleXMLObject->Response;
@@ -463,9 +472,9 @@ class YoPayments {
             'namelookup_time' => isset($curl_info['namelookup_time']) ? $curl_info['namelookup_time'] : null,
             'connect_time' => isset($curl_info['connect_time']) ? $curl_info['connect_time'] : null,
             'starttransfer_time' => isset($curl_info['starttransfer_time']) ? $curl_info['starttransfer_time'] : null,
-            'request_xml' => (string) $xml,
+            'request_xml' => $this->redact_sensitive_xml((string) $xml),
             'response_xml' => (string) $xml_response,
-            'request_excerpt' => substr(preg_replace('/\s+/', ' ', (string) $xml), 0, 500),
+            'request_excerpt' => substr(preg_replace('/\s+/', ' ', $this->redact_sensitive_xml((string) $xml)), 0, 500),
             'response_excerpt' => substr(preg_replace('/\s+/', ' ', (string) $xml_response), 0, 500)
         ));
 
@@ -480,5 +489,31 @@ class YoPayments {
         }
 
         @file_put_contents($dir . DIRECTORY_SEPARATOR . 'yopayments_transport.log', json_encode($data) . PHP_EOL, FILE_APPEND);
+    }
+
+    private function xml_escape($value)
+    {
+        return htmlspecialchars((string) $value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
+    }
+
+    private function has_valid_xml_response($xml_response)
+    {
+        return is_string($xml_response) && trim($xml_response) !== '' && @simplexml_load_string($xml_response) !== false;
+    }
+
+    private function build_transport_error_response($xml_response)
+    {
+        return array(
+            'Status' => 'ERROR',
+            'StatusCode' => 'TRANSPORT_ERROR',
+            'StatusMessage' => 'Unable to reach Yo Payments or parse the gateway response.',
+            'TransactionStatus' => 'PENDING',
+            'RawResponse' => (string) $xml_response
+        );
+    }
+
+    private function redact_sensitive_xml($xml)
+    {
+        return preg_replace('/<APIPassword>.*?<\/APIPassword>/s', '<APIPassword>[REDACTED]</APIPassword>', (string) $xml);
     }
 }

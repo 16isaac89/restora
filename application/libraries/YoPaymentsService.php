@@ -18,13 +18,13 @@ class YoPaymentsService {
         $company = $this->ci->Common_model->getDataById($company_id, 'tbl_companies');
         $settings = isset($company->payment_settings) ? json_decode($company->payment_settings) : null;
 
-        $this->is_enabled = true;
-        // $username = '90009372017';
-        // $password = '7775856071';
-         $username = '100134680791';
-        $password = 'd2sh-ChT7-ptKR-0ULa-coY5-xPcG-xEbq-Fy3o';
-        $this->is_configured = true;
-        $mode = 'production';
+        $this->is_enabled = isset($settings->field_yopayments) && (string) $settings->field_yopayments === '1';
+        $username = isset($settings->field_yopayments_key_1) ? trim((string) $settings->field_yopayments_key_1) : '';
+        $password = isset($settings->field_yopayments_key_2) ? trim((string) $settings->field_yopayments_key_2) : '';
+        $this->is_configured = $username !== '' && $password !== '';
+        $mode = (isset($settings->field_yopayments_v) && strtolower((string) $settings->field_yopayments_v) === 'sandbox')
+            ? 'sandbox'
+            : 'production';
 
         $params = array(
             'username' => $username,

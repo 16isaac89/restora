@@ -5250,10 +5250,11 @@
                 }
             }
         }
-        searched_category_items_to_show += "<div>";
-        $("#searched_item_found").remove();
-        $(".specific_category_items_holder").fadeOut(0);
-        $(".category_items").prepend(searched_category_items_to_show);
+              if (!foundItems.length) {
+                  searched_category_items_to_show += buildRenderedItemCardsFromDom("");
+              }
+	          searched_category_items_to_show += "</div>";
+	          showDynamicItemHolder(searched_category_items_to_show);
   
         if(food_menu_tooltip=="show"){
             tippy(".item_name", {
@@ -5265,6 +5266,29 @@
       function getOrderTime() {
           return (Number(Math.floor(Math.random() * (6 - 1 + 1) + 3))).toFixed(ir_precision);
       }
+      function buildRenderedItemCardsFromDom(searchValue) {
+        let normalizedSearchValue = (searchValue || "").toString().toLowerCase();
+        let renderedItems = "";
+        $(".category_items .specific_category_items_holder")
+          .not("#searched_item_found")
+          .find(".single_item")
+          .each(function () {
+            let itemName = $(this).find(".item_name").text().toLowerCase();
+            let itemCode = ($(this).attr("data-code") || "").toString().toLowerCase();
+            if (!normalizedSearchValue || itemName.indexOf(normalizedSearchValue) > -1 || itemCode.indexOf(normalizedSearchValue) > -1) {
+              renderedItems += $("<div>").append($(this).clone()).html();
+            }
+          });
+        return renderedItems;
+      }
+
+      function showDynamicItemHolder(html) {
+        $("#searched_item_found").remove();
+        $(".specific_category_items_holder").fadeOut(0);
+        $(".category_items").prepend(html);
+        $("#searched_item_found").css("display", "grid");
+      }
+
       //when anything is searched
       $(document).on("keyup", "#search", function (e) {
         // if (e.keyCode == 13) {
@@ -5273,8 +5297,8 @@
           let foundItems = searchItemAndConstructGallery(searched_string);
           let searched_category_items_to_show =
             '<div id="searched_item_found" class="specific_category_items_holder 002">';
-          for (let key in foundItems) {
-              if (foundItems.hasOwnProperty(key)) {
+	          for (let key in foundItems) {
+	              if (foundItems.hasOwnProperty(key)) {
                   if (foundItems[key].parent_id == '0') {
                       let card_display_price = getDisplayPriceForPosItem(foundItems[key]);
                       searched_category_items_to_show +=
@@ -5301,13 +5325,14 @@
                           "</span>";
                       searched_category_items_to_show += "</div>";
                   }
+	              }
+	          }
+              if (!foundItems.length) {
+                  searched_category_items_to_show += buildRenderedItemCardsFromDom(searched_string);
               }
-          }
-          searched_category_items_to_show += "<div>";
-          $("#searched_item_found").remove();
-          $(".specific_category_items_holder").fadeOut(0);
-          $(".category_items").prepend(searched_category_items_to_show);
-          // }
+	          searched_category_items_to_show += "</div>";
+	          showDynamicItemHolder(searched_category_items_to_show);
+	          // }
             if(food_menu_tooltip=="show"){
                 tippy(".item_name", {
                     placement: "bottom-start",
@@ -6825,10 +6850,11 @@
             }
           }
           }
-          searched_category_items_to_show += "<div>";
-          $("#searched_item_found").remove();
-          $(".specific_category_items_holder").fadeOut(0);
-          $(".category_items").prepend(searched_category_items_to_show);
+              if (!foundItems.length) {
+                  searched_category_items_to_show += buildRenderedItemCardsFromDom("");
+              }
+	          searched_category_items_to_show += "</div>";
+	          showDynamicItemHolder(searched_category_items_to_show);
             if(food_menu_tooltip=="show"){
                 tippy(".item_name", {
                     placement: "bottom-start",
@@ -6868,10 +6894,11 @@
                         }
                     }
                 }
-                searched_category_items_to_show += "<div>";
-                $("#searched_item_found").remove();
-                $(".specific_category_items_holder").fadeOut(0);
-                $(".category_items").prepend(searched_category_items_to_show);
+                if (!foundItems.length) {
+                    searched_category_items_to_show += buildRenderedItemCardsFromDom("");
+                }
+                searched_category_items_to_show += "</div>";
+                showDynamicItemHolder(searched_category_items_to_show);
             if(food_menu_tooltip=="show"){
                 tippy(".item_name", {
                     placement: "bottom-start",
@@ -10912,10 +10939,11 @@
                 }
             }
         }
-        searched_category_items_to_show += "<div>";
-        $("#searched_item_found").remove();
-        $(".specific_category_items_holder").fadeOut(0);
-        $(".category_items").prepend(searched_category_items_to_show);
+        if (!foundItems.length) {
+            searched_category_items_to_show += buildRenderedItemCardsFromDom("");
+        }
+        searched_category_items_to_show += "</div>";
+        showDynamicItemHolder(searched_category_items_to_show);
           if(food_menu_tooltip=="show"){
               tippy(".item_name", {
                   placement: "bottom-start",
@@ -21166,8 +21194,9 @@
           console.log("[YoPayments] initiate_mobile_money response", response);
           if (response.status === "success") {
             let ref = response.transaction_reference;
+            let privateRef = response.private_transaction_reference || "";
             toastr['success']("Payment request sent to customer's phone. Please approve the payment.", '');
-            poll_yopayments_status(ref);
+            poll_yopayments_status(ref, privateRef);
           } else {
             toastr['error']((response.message || "Payment initiation failed"), '');
             $("#finalize_order_button").prop("disabled", false);
@@ -21187,12 +21216,16 @@
       });
     }
 
-    function poll_yopayments_status(ref) {
+    function poll_yopayments_status(ref, privateRef) {
       let pollCount = 0;
       let pollErrorCount = 0;
       let paymentFinalized = false;
-      console.log("[YoPayments] Start polling", { ref: ref });
+      let pollInFlight = false;
+      console.log("[YoPayments] Start polling", { ref: ref, privateRef: privateRef });
       let pollInterval = setInterval(function () {
+        if (pollInFlight) {
+          return;
+        }
         pollCount++;
         console.log("[YoPayments] Poll tick", { ref: ref, pollCount: pollCount });
         if (pollCount > 30) {
@@ -21204,11 +21237,16 @@
           return;
         }
 
+        pollInFlight = true;
         $.ajax({
           url: base_url + "Payments/check_status/" + ref,
           method: "GET",
+          data: {
+            private_ref: privateRef || ""
+          },
           dataType: "json",
           success: function (response) {
+            pollInFlight = false;
             pollErrorCount = 0;
             console.log("[YoPayments] Poll response", response);
             if (paymentFinalized) {
@@ -21222,7 +21260,7 @@
               $("#finalize_order_button").prop("disabled", false);
               $("#finalize_order_button").html('<i class="fas fa-file-invoice"></i> Submit');
               $("#finalize_order_button").trigger("click", [true]);
-            } else if (response.status === "failed") {
+            } else if (response.status === "failed" || response.status === "delayed_failure") {
               clearInterval(pollInterval);
               toastr['error'](("Payment failed: " + (response.message || "Unknown error")), '');
               $("#finalize_order_button").prop("disabled", false);
@@ -21230,6 +21268,7 @@
             }
           },
           error: function (xhr, textStatus, errorThrown) {
+            pollInFlight = false;
             pollErrorCount++;
             console.error("[YoPayments] Poll ajax error", {
               ref: ref,

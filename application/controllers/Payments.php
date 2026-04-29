@@ -109,28 +109,28 @@ class Payments extends CI_Controller {
             return;
         }
 
+        if ($gateway_status_code === 'TRANSPORT_ERROR') {
+            $final_status = 'pending';
+            $this->write_debug_log('check_status', array(
+                'ref' => $ref,
+                'private_ref' => $private_ref,
+                'source' => $response_source,
+                'final_status' => $final_status,
+                'response' => $response
+            ));
+            echo json_encode(array(
+                'status' => 'pending',
+                'message' => $message !== '' ? $message : 'Payment status could not be verified yet. Retrying...',
+                'yo_status' => 'PENDING',
+                'yo_response' => $response
+            ));
+            return;
+        }
+
         $explicit_failed_status_codes = array(
             2, 3, 7, 8, 10, 11, 14, 15, 16, 18, 19, 22, 24, 26, 28
         );
         if ($gateway_status_code_int !== null && in_array($gateway_status_code_int, $explicit_failed_status_codes, true)) {
-            if ($gateway_status_code_int === 2 && $error_code === '34') {
-                $final_status = 'delayed_failure';
-                $this->write_debug_log('check_status', array(
-                    'ref' => $ref,
-                    'private_ref' => $private_ref,
-                    'source' => $response_source,
-                    'final_status' => $final_status,
-                    'response' => $response
-                ));
-                echo json_encode(array(
-                    'status' => 'delayed_failure',
-                    'message' => 'Payment response is delayed. Check the customer phone before retrying.',
-                    'yo_status' => $status,
-                    'yo_response' => $response
-                ));
-                return;
-            }
-
             $final_status = 'failed';
             $this->write_debug_log('check_status', array(
                 'ref' => $ref,
