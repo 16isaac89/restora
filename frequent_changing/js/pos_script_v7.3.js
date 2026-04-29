@@ -344,17 +344,31 @@
           return qty;
       }
 
+      function normalizeKotPrintItem(item) {
+          let normalized_item = $.extend(true, {}, item || {});
+          let food_menu_id = normalized_item.food_menu_id || normalized_item.item_id || 0;
+          let master_item = getPosItemDetailsById(food_menu_id);
+          if (normalized_item.kitchen_id == null || normalized_item.kitchen_id === "") {
+              normalized_item.kitchen_id = master_item.kitchen_id != null ? master_item.kitchen_id : 0;
+          }
+          if (!normalized_item.kitchen_name) {
+              normalized_item.kitchen_name = master_item.kitchen_name || "";
+          }
+          return normalized_item;
+      }
+
       function getAggregatedKotItems(order_items, kot_print) {
           let grouped_items = {};
           let grouped_order = [];
           (order_items || []).forEach(function (item) {
-              let display_qty = getKotDisplayQtyForAggregation(item, kot_print);
+              let normalized_item = normalizeKotPrintItem(item);
+              let display_qty = getKotDisplayQtyForAggregation(normalized_item, kot_print);
               if (display_qty <= 0) {
                   return;
               }
-              let group_key = getKotAggregationKey(item);
+              let group_key = getKotAggregationKey(normalized_item);
               if (!grouped_items[group_key]) {
-                  grouped_items[group_key] = $.extend(true, {}, item);
+                  grouped_items[group_key] = $.extend(true, {}, normalized_item);
                   grouped_items[group_key].qty = display_qty;
                   grouped_items[group_key].tmp_qty = display_qty;
                   grouped_order.push(grouped_items[group_key]);
@@ -384,6 +398,7 @@
               if (!item) {
                   return;
               }
+              item = normalizeKotPrintItem(item);
               let menu_name = item.menu_name ? item.menu_name : ("Item #" + (item.food_menu_id || ""));
               let totalQty = Number(item.qty || 0);
               let tmpQty = Number(item.tmp_qty || 0);
@@ -1540,7 +1555,10 @@
           
           for (let key in order_info) {
               let order = order_info[key];
-              let kot_items = getAggregatedKotItems(order.items, kot_print);
+              let normalized_order_items = Array.isArray(order.items) ? order.items.map(function (item) {
+                  return normalizeKotPrintItem(item);
+              }) : [];
+              let kot_items = getAggregatedKotItems(normalized_order_items, kot_print);
            
               let order_type = order.sale_type;
               let total_item_counter = 0;
@@ -1758,11 +1776,10 @@
                 if(data.invoice_status){
                     toastr['error']((data.invoice_msg), ''); 
                 }else{
-                    if(is_print){
+          if(is_print){
                         let content_data_direct_print = data.content_data_direct_print || [];
-                        let popupData = data.content_data_popup_print || [];
                         let hasDirectPrint = false;
-                        let hasPopupPrint = popupData.length > 0;
+                        let hasPopupPrint = Array.isArray(data.content_data_popup_print) && data.content_data_popup_print.length > 0;
 
                         for (let key in content_data_direct_print) {
                             if(content_data_direct_print[key].ipvfour_address){
@@ -1778,13 +1795,8 @@
                         }
 
                         if(hasPopupPrint){
-                            if(hasDirectPrint){
-                                $("#kot_print").val(2);
-                                print_kot_popup_print(popupData,1);
-                            }else{
-                                $("#kot_print").val(1);
-                                print_kot_print(order_object,1);
-                            }
+                            $("#kot_print").val(1);
+                            print_kot_print(order_object,1);
                         } else {
                             console.warn("[PRINT][KOT][PUSH_ONLINE] no popup print data returned");
                         }
@@ -2466,9 +2478,12 @@
     }
       function print_kot_print(order_info,kot_print) {
           let order = JSON.parse(order_info);
+          let normalized_order_items = Array.isArray(order.items) ? order.items.map(function (item) {
+              return normalizeKotPrintItem(item);
+          }) : [];
           let kot_items = Number(kot_print) === 1
-              ? getKotDisplayLinesFromOrderItems(order.items || [])
-              : getAggregatedKotItems(order.items, kot_print);
+              ? getKotDisplayLinesFromOrderItems(normalized_order_items)
+              : getAggregatedKotItems(normalized_order_items, kot_print);
           // console.log(order);
           let order_type = "";
           let total_item_counter = 0;
@@ -11681,7 +11696,13 @@
             console.warn("[PRINT][KOT] No ipvfour_address found for direct print", data);
             toastr['error']("No network printer address found for selected kitchen.", '');
           }
-          print_kot_popup_print(data.content_data_popup_print || [],0);
+          getSelectedOrderDetails(selected_order_no).then(function (order_data) {
+            if (order_data && order_data.order !== null) {
+              print_kot_print(order_data.order, kot_print);
+            } else if (Array.isArray(data.content_data_popup_print) && data.content_data_popup_print.length) {
+              print_kot_popup_print(data.content_data_popup_print || [],0);
+            }
+          });
         },
         error: function (xhr, textStatus, errorThrown) {
           console.error("[PRINT][KOT] selectedKitchenPrinting ajax error", {
@@ -16851,7 +16872,13 @@
                                             );
                                         }
                                     }
-                                    print_kot_popup_print(data.content_data_popup_print,0);
+                                    getSelectedOrderDetails(selected_order_no).then(function (order_data) {
+                                    if (order_data && order_data.order !== null) {
+                                        print_kot_print(order_data.order, 1);
+                                    } else {
+                                        print_kot_popup_print(data.content_data_popup_print,0);
+                                    }
+                                    });
                                     },
                                     error: function () {},
                                 });
