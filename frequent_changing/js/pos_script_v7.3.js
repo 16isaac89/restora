@@ -11882,7 +11882,7 @@
     });
   
     
-      $(document).on("click", "#order_details_print_kot_button", function (e) {
+    $(document).on("click", "#order_details_print_kot_button", function (e) {
           if (is_loggedin_waiter_designation()) {
               return block_waiter_restricted_action();
           }
@@ -11903,7 +11903,14 @@
                       $(".modal").removeClass("inActive");
                   }, 1000);
                   $(".pos__modal__overlay").fadeOut(300);
-                  $("#print_kot").click();
+                  let sale_no = $(".holder .order_details .single_order[data-selected=selected]").find(".running_order_order_number").text();
+                  if (sale_no) {
+                      getSelectedOrderDetails(sale_no).then(function(data){
+                          if(data.order !== null) {
+                              print_kot_print(data.order, 1);
+                          }
+                      });
+                  }
   
               } else {
                   toastr['error']((please_select_open_order), '');
