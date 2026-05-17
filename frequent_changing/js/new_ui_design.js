@@ -99,57 +99,59 @@ $(function() {
 
 
     
-    $('.food_menu_slider').slick({
-        dots: false,
-        arrows: true,
-        infinite: true,
-        prevArrow: '<button type="button" class="slick-prev"><i class="fas fa-angle-left"></i></button>',
-        nextArrow: '<button type="button" class="slick-next"><i class="fas fa-angle-right"></i></button>',
-        speed: 300,
-        slidesToShow: 7,
-        slidesToScroll: 1, // Show 1 more on each scroll
-        responsive: [
-            {
-                breakpoint: 1600,
-                settings: {
-                    slidesToShow: 6,
-                    slidesToScroll: 1,
-                    arrows: true,
+    if ($.fn.slick && $('.food_menu_slider').length) {
+        $('.food_menu_slider').slick({
+            dots: false,
+            arrows: true,
+            infinite: true,
+            prevArrow: '<button type="button" class="slick-prev"><i class="fas fa-angle-left"></i></button>',
+            nextArrow: '<button type="button" class="slick-next"><i class="fas fa-angle-right"></i></button>',
+            speed: 300,
+            slidesToShow: 7,
+            slidesToScroll: 1, // Show 1 more on each scroll
+            responsive: [
+                {
+                    breakpoint: 1600,
+                    settings: {
+                        slidesToShow: 6,
+                        slidesToScroll: 1,
+                        arrows: true,
+                    }
+                },
+                {
+                    breakpoint: 1366,
+                    settings: {
+                        slidesToShow: 4,
+                        slidesToScroll: 1,
+                        arrows: true,
+                    }
+                },
+                {
+                    breakpoint: 1200,
+                    settings: {
+                        slidesToShow: 3,
+                        slidesToScroll: 1,
+                        arrows: true,
+                    }
+                },
+                {
+                    breakpoint: 992,
+                    settings: {
+                        slidesToShow: 2,
+                        slidesToScroll: 1,
+                        arrows: false,
+                    }
+                },
+                {
+                    breakpoint: 480,
+                    settings: {
+                        slidesToShow: 1,
+                        slidesToScroll: 1,
+                        arrows: false,
+                    }
                 }
-            },
-            {
-                breakpoint: 1366,
-                settings: {
-                    slidesToShow: 4,
-                    slidesToScroll: 1,
-                    arrows: true,
-                }
-            },
-            {
-                breakpoint: 1200,
-                settings: {
-                    slidesToShow: 3,
-                    slidesToScroll: 1,
-                    arrows: true,
-                }
-            },
-            {
-                breakpoint: 992,
-                settings: {
-                    slidesToShow: 2,
-                    slidesToScroll: 1,
-                    arrows: false,
-                }
-            },
-            {
-                breakpoint: 480,
-                settings: {
-                    slidesToShow: 1,
-                    slidesToScroll: 1,
-                    arrows: false,
-                }
-            }
-        ]
-    });
+            ]
+        });
+    }
 
 });

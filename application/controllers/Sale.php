@@ -4120,7 +4120,8 @@ We hope to see you again!";
                  
                 $total_sale =  $this->Sale_model->getAllSaleByPayment($opening_date_time,$payments[0]);
 
-                $inline_total = $payments[2] - $total_purchase + $total_sale  + $total_due_receive - $total_due_payment - $total_expense - $refund_amount;
+                $opening_amount = isset($payments[2]) ? (float) $payments[2] : 0.0;
+                $inline_total = $opening_amount - (float) $total_purchase + (float) $total_sale + (float) $total_due_receive - (float) $total_due_payment - (float) $total_expense - (float) $refund_amount;
 
                 $array_p_name[] = $payments[1];
                 $array_p_amount[] = $inline_total;
@@ -4251,23 +4252,40 @@ We hope to see you again!";
      */
     public function registerDetailCalculationToShowAjax(){
         $this->output->set_content_type('application/json');
-        $all_register_info_values = $this->registerDetailCalculationToShow();
-        if(!is_array($all_register_info_values)){
+        try {
+            $all_register_info_values = $this->registerDetailCalculationToShow();
+            if(!is_array($all_register_info_values)){
+                $all_register_info_values = array(
+                    'status' => 'error',
+                    'message' => 'Unable to load register details',
+                    'opening_date_time' => '',
+                    'closing_date_time' => '',
+                    'html_content_for_div' => ''
+                );
+            }else{
+                $all_register_info_values['status'] = 'success';
+                $all_register_info_values['message'] = 'Register details loaded';
+                $all_register_info_values['_debug'] = array(
+                    'server_time' => date('Y-m-d H:i:s'),
+                    'user_id' => (string)$this->session->userdata('user_id'),
+                    'outlet_id' => (string)$this->session->userdata('outlet_id'),
+                    'counter_id' => (string)$this->session->userdata('counter_id')
+                );
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'registerDetailCalculationToShowAjax failed: '.$e->getMessage().' in '.$e->getFile().':'.$e->getLine());
             $all_register_info_values = array(
                 'status' => 'error',
                 'message' => 'Unable to load register details',
                 'opening_date_time' => '',
                 'closing_date_time' => '',
-                'html_content_for_div' => ''
-            );
-        }else{
-            $all_register_info_values['status'] = 'success';
-            $all_register_info_values['message'] = 'Register details loaded';
-            $all_register_info_values['_debug'] = array(
-                'server_time' => date('Y-m-d H:i:s'),
-                'user_id' => (string)$this->session->userdata('user_id'),
-                'outlet_id' => (string)$this->session->userdata('outlet_id'),
-                'counter_id' => (string)$this->session->userdata('counter_id')
+                'html_content_for_div' => '',
+                '_debug_error' => array(
+                    'type' => get_class($e),
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine()
+                )
             );
         }
         echo json_encode($all_register_info_values, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);

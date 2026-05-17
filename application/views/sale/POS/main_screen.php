@@ -561,6 +561,8 @@ foreach ($notifications as $single_notification){
     <link rel="stylesheet" href="<?php echo base_url(); ?>frequent_changing/css/delivery_partner.css">
     <link href="<?php echo base_url(); ?>frequent_changing/notify/toastr.css" rel="stylesheet" type="text/css" />
     <link href="<?php echo base_url(); ?>frequent_changing/css/register_details.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="<?php echo base_url(); ?>assets/plugins/slick-slider/slick.css">
+    <link rel="stylesheet" href="<?php echo base_url(); ?>assets/website/css/plugins/slick-theme.css">
     <script src="<?php echo base_url(); ?>frequent_changing/js/jquery.spincrement.js"></script>
     <base data-base="<?php echo base_url(); ?>">
     </base>
@@ -4805,6 +4807,7 @@ endif;
     <script src="<?php echo base_url(); ?>frequent_changing/js/dataTable/vfs_fonts.js"></script>
     <script src="<?php echo base_url(); ?>frequent_changing/newDesign/js/forTable.js"></script>
     <script src="<?php echo base_url(); ?>frequent_changing/js/register_details.js"></script>   
+    <script src="<?php echo base_url(); ?>assets/plugins/slick-slider/slick.min.js"></script>
     <script src="<?php echo base_url(); ?>frequent_changing/js/new_ui_design.js"></script>   
 </body>
 
