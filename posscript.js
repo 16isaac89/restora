@@ -540,6 +540,7 @@
                   let outlet_id = Number(orderData.outlet_id);
                   let user_id = Number(orderData.user_id);
                   let user_id_login = Number($("#user_id").val());
+                  let online_push = Number(orderData.online_push || 0);
   
                   if(user_id_login==user_id){
                     let sale_no_plan = get_plan_string(rowData.sale_no);
@@ -572,7 +573,7 @@
  
   
                       order_list_left += '<span id="open_orders_order_status_' + sales_id + '" class="ir_display_none">' + rowData.order_status + '</span> <p><span title="' + customer_name + '" class="running_order_customer_name">'+lang_customer+': ' + customer_name + '</span></p> <i class="far fa-chevron-right running_order_right_arrow" id="running_order_right_arrow_' + sales_id + '"></i>';
-                      order_list_left += '<p class="oder_list_class">'+lang_order+': <span data-added_offline_status="'+orderData.added_offline_status+'" class="running_order_order_number">' + rowData.sale_no + "</span></p>";
+                      order_list_left += '<p class="oder_list_class">'+lang_order+': <span data-added_offline_status="'+orderData.added_offline_status+'" data-online_push="'+online_push+'" class="running_order_order_number">' + rowData.sale_no + "</span></p>";
                       order_list_left += '<p class="oder_list_class">'+lang_order_type+': <span class="running_order_order_number_">' + order_type + "</span></p>";
                       order_list_left += '<p>'+lang_table+': <span class="running_order_table_name">' + tables_booked + "</span></p>";
                       order_list_left += '<p>'+lang_waiter+': <span class="running_order_waiter_name">' + waiter_name + "</span></p>";
@@ -582,6 +583,23 @@
 
                       $("#order_details_holder").html(order_list_left);
                       i++;
+                  }
+                  cursor.continue();
+              }
+          };
+      }
+      function updateRunningOrderSyncStatus(sale_no, sync_status){
+          let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
+          objectStore.openCursor().onsuccess = function(event) {
+              let cursor = event.target.result;
+              if (cursor) {
+                  if(cursor.value.sale_no == sale_no) {
+                      let updateData = cursor.value;
+                      updateData.online_push = sync_status;
+                      let request = cursor.update(updateData);
+                      request.onsuccess = function() {
+                          displayOrderList();
+                      }
                   }
                   cursor.continue();
               }
@@ -1380,6 +1398,7 @@
                 if(data.invoice_status){
                     toastr['error']((data.invoice_msg), ''); 
                 }else{
+                    updateRunningOrderSyncStatus(sale_no, 1);
                     if(is_print){
                         let content_data_direct_print = data.content_data_direct_print || [];
                         let popupData = data.content_data_popup_print || [];
@@ -1597,7 +1616,7 @@
                                let sale_no_new = order.sale_no;
                                let order_object = order.self_order_content;
                                if (!$("#order_"+get_plan_string(sale_no_new)).length) {
-                                    add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","");
+                                    add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","",1);
                                     
                                     toastr['success']((sale_no_new+" "+pulled_successfully), '');
                                } 
@@ -12390,7 +12409,7 @@
           $(".old_added_table").remove();
           $(".new_book_to_table").remove();
       }
-    function add_sale_by_ajax(update_sale_id,order_object,outlet_id='',company_id='',sale_no_new='',is_direct_sale='',action_type='',is_merge='') {
+    function add_sale_by_ajax(update_sale_id,order_object,outlet_id='',company_id='',sale_no_new='',is_direct_sale='',action_type='',is_merge='',online_push_status=0) {
           //reset previous update sale id
         $("#update_sale_id").val("");
         let sale = JSON.parse(order_object);
@@ -12405,7 +12424,7 @@
             if(!update_sale_id) {
                 let order_info = {
                     order: order_object,
-                    online_push: 0,
+                    online_push: online_push_status,
                     user_id: Number($("#user_id").val()),
                     added_offline_status: added_offline_status,
                     kot_print: 1,
@@ -12460,7 +12479,7 @@
                         if(cursor.value.sales_id == sale_id) {
                             let updateData = cursor.value;
                             updateData.order = order_object; 
-                            updateData.online_push = 0;
+                            updateData.online_push = online_push_status;
                             updateData.kot_print = 1;
                             if(table_id){
                               updateData.table_id = table_id;
@@ -12485,7 +12504,7 @@
             if(!update_sale_id) {
                 let order_info = {
                     order: order_object,
-                    online_push: 0,
+                    online_push: online_push_status,
                     user_id: Number($("#user_id").val()),
                     added_offline_status: added_offline_status,
                     kot_print: 1,
@@ -12555,7 +12574,7 @@
                         if(cursor.value.sale_no == sale_no_new) {
                             let updateData = cursor.value;
                             updateData.order = order_object; 
-                            updateData.online_push = 0;
+                            updateData.online_push = online_push_status;
                             updateData.kot_print =  1;
                             if(table_id){
                               updateData.table_id = table_id;
@@ -14109,7 +14128,8 @@
         $(".running_order_order_number").each(function() {
             let running_order_order_number = $(this).text();
             let added_offline_status = Number($(this).attr("data-added_offline_status"));
-            if(added_offline_status==2){
+            let online_push = Number($(this).attr("data-online_push"));
+            if(added_offline_status==2 && online_push===1){
                 sale_no_all+=running_order_order_number;
                 sale_no_all+=",";
             }
@@ -14145,7 +14165,7 @@
                         }
                     });
                     if(is_exist==false){
-                        add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","");
+                        add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","",1);
                         //call for print KOT only for Waiter App Order.
                         if(order_info.waiter_app_status=="Yes"){
                           push_online_for_kitchen(order.self_order_content,'',sale_no_new,1);
@@ -15175,7 +15195,7 @@
                           let order_object = (orders[key].order_content);
                           let outlet_id_indexdb = $("#outlet_id_indexdb").val();
                           let company_id_indexdb = $("#company_id_indexdb").val();
-                          add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","");
+                          add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","",1);
                           removePulledData(orders[key].id);
                       }
                       $("#pull_running_order").hide();
@@ -16215,7 +16235,7 @@
   
                           let outlet_id_indexdb = $("#outlet_id_indexdb").val();
                           let company_id_indexdb = $("#company_id_indexdb").val();
-                          add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","");
+                          add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","",1);
                           remove_all_cart_future_info();
                           printKOTSelforOnlineOrder(sale_no_new);
                       },

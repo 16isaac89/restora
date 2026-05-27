@@ -1771,9 +1771,10 @@ class Common_model extends CI_Model {
                         ->row();
                     $pre_or_post_payment = $this->session->userdata('pre_or_post_payment');
                     if($pre_or_post_payment!=2 && $selected){
-                        $this->db->delete("tbl_sales_details", array("sales_id" => $selected->id));
-                        $this->db->delete("tbl_sales_details_modifiers", array("sales_id" => $selected->id));
-                        $this->db->delete("tbl_sales", array("id" => $selected->id));
+                        $this->db->delete("tbl_kitchen_sales_details", array("sales_id" => $selected->id));
+                        $this->db->delete("tbl_kitchen_sales_details_modifiers", array("sales_id" => $selected->id));
+                        $this->db->delete("tbl_kitchen_sales", array("id" => $selected->id));
+                        $this->db->delete("tbl_running_order_tables", array("sale_no" => $value, "outlet_id" => $outlet_id));
                     } 
                 } 
             }

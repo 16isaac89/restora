@@ -1119,7 +1119,19 @@
     }
     function getSaleDetailsBySaleNo($sale_no) {
         $CI = & get_instance();
-        $user_information = $CI->db->query("SELECT * FROM tbl_sales where `sale_no`='$sale_no' AND del_status='Live'")->row();
+        $outlet_id = $CI->session->userdata('outlet_id');
+        $company_id = $CI->session->userdata('company_id');
+        $CI->db->select('*');
+        $CI->db->from('tbl_sales');
+        $CI->db->where('sale_no', $sale_no);
+        $CI->db->where('del_status', 'Live');
+        if($company_id){
+            $CI->db->where('company_id', $company_id);
+        }
+        if($outlet_id){
+            $CI->db->where('outlet_id', $outlet_id);
+        }
+        $user_information = $CI->db->get()->row();
         if(isset($user_information) && $user_information){
             return $user_information;
         }else{
@@ -1158,7 +1170,19 @@
     }
     function getKitchenSaleDetailsBySaleNo($sale_no) {
         $CI = & get_instance();
-        $user_information = $CI->db->query("SELECT * FROM tbl_kitchen_sales where `sale_no`='$sale_no' AND del_status='Live'")->row();
+        $outlet_id = $CI->session->userdata('outlet_id');
+        $company_id = $CI->session->userdata('company_id');
+        $CI->db->select('*');
+        $CI->db->from('tbl_kitchen_sales');
+        $CI->db->where('sale_no', $sale_no);
+        $CI->db->where('del_status', 'Live');
+        if($company_id){
+            $CI->db->where('company_id', $company_id);
+        }
+        if($outlet_id){
+            $CI->db->where('outlet_id', $outlet_id);
+        }
+        $user_information = $CI->db->get()->row();
 
         if(isset($user_information) && $user_information){
             return $user_information;
@@ -1168,7 +1192,19 @@
     }
     function getKitchenSaleDetailsBySaleNoWithDeleted($sale_no) {
         $CI = & get_instance();
-        $user_information = $CI->db->query("SELECT * FROM tbl_kitchen_sales where `sale_no`='$sale_no' AND del_status='Live'")->row();
+        $outlet_id = $CI->session->userdata('outlet_id');
+        $company_id = $CI->session->userdata('company_id');
+        $CI->db->select('*');
+        $CI->db->from('tbl_kitchen_sales');
+        $CI->db->where('sale_no', $sale_no);
+        $CI->db->where('del_status', 'Live');
+        if($company_id){
+            $CI->db->where('company_id', $company_id);
+        }
+        if($outlet_id){
+            $CI->db->where('outlet_id', $outlet_id);
+        }
+        $user_information = $CI->db->get()->row();
 
         if(isset($user_information) && $user_information){
             return $user_information;
@@ -1189,7 +1225,16 @@
 
     function getExistOrderInfoTable($sale_no,$table_id) {
         $CI = & get_instance();
-        $user_information = $CI->db->query("SELECT * FROM tbl_running_order_tables where `sale_no`='$sale_no' AND `table_id`='$table_id' AND del_status='Live'")->row();
+        $outlet_id = $CI->session->userdata('outlet_id');
+        $CI->db->select('*');
+        $CI->db->from('tbl_running_order_tables');
+        $CI->db->where('sale_no', $sale_no);
+        $CI->db->where('table_id', $table_id);
+        $CI->db->where('del_status', 'Live');
+        if($outlet_id){
+            $CI->db->where('outlet_id', $outlet_id);
+        }
+        $user_information = $CI->db->get()->row();
 
         if(isset($user_information) && $user_information){
             return $user_information;
@@ -2069,8 +2114,88 @@
 
     function getRunningOrders($user_id) {
         $CI = & get_instance();
-        $total_users = $CI->db->query("SELECT * FROM tbl_running_orders where `user_id`='$user_id'")->result();
-        return $total_users;
+        $company_id = $CI->session->userdata('company_id');
+        $outlet_id = $CI->session->userdata('outlet_id');
+        $role = $CI->session->userdata('role');
+        $designation = $CI->session->userdata('designation');
+
+        $running_orders = $CI->db->query("SELECT * FROM tbl_running_orders WHERE `user_id`='$user_id' AND del_status='Live'")->result();
+        if(!empty($running_orders)){
+            return $running_orders;
+        }
+
+        if(!$company_id || !$outlet_id){
+            return array();
+        }
+
+        if($role=="Admin"){
+            return $CI->db->query("
+                SELECT
+                    0 AS id,
+                    sale_no,
+                    self_order_content AS order_content,
+                    order_receiving_id_admin AS user_id,
+                    del_status
+                FROM tbl_kitchen_sales
+                WHERE sale_no NOT IN (
+                    SELECT DISTINCT sale_no
+                    FROM tbl_sales
+                    WHERE del_status='Live'
+                    AND outlet_id='$outlet_id'
+                    AND company_id='$company_id'
+                )
+                AND del_status='Live'
+                AND is_accept=1
+                AND company_id='$company_id'
+                AND outlet_id='$outlet_id'
+                AND order_receiving_id_admin='$user_id'
+            ")->result();
+        }
+
+        if($designation=="Cashier"){
+            return $CI->db->query("
+                SELECT
+                    0 AS id,
+                    sale_no,
+                    self_order_content AS order_content,
+                    user_id,
+                    del_status
+                FROM tbl_kitchen_sales
+                WHERE sale_no NOT IN (
+                    SELECT DISTINCT sale_no
+                    FROM tbl_sales
+                    WHERE del_status='Live'
+                    AND outlet_id='$outlet_id'
+                    AND company_id='$company_id'
+                )
+                AND del_status='Live'
+                AND is_accept=1
+                AND company_id='$company_id'
+                AND outlet_id='$outlet_id'
+            ")->result();
+        }
+
+        return $CI->db->query("
+            SELECT
+                0 AS id,
+                sale_no,
+                self_order_content AS order_content,
+                order_receiving_id AS user_id,
+                del_status
+            FROM tbl_kitchen_sales
+            WHERE sale_no NOT IN (
+                SELECT DISTINCT sale_no
+                FROM tbl_sales
+                WHERE del_status='Live'
+                AND outlet_id='$outlet_id'
+                AND company_id='$company_id'
+            )
+            AND del_status='Live'
+            AND is_accept=1
+            AND company_id='$company_id'
+            AND outlet_id='$outlet_id'
+            AND (user_id='$user_id' OR order_receiving_id='$user_id')
+        ")->result();
     }
 
     function get_all_running_order_for_new_pc($user_id) {
