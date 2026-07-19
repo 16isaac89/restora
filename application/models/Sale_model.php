@@ -254,13 +254,67 @@ class Sale_model extends CI_Model {
     public function getAllFoodMenus(){
       $outlet_id = $this->session->userdata('outlet_id');
       $getFM = getFMIds($outlet_id);
-      $result = $this->db->query("SELECT fm.*,fmc.category_name, COUNT(sd.food_menu_id) as item_sold,kitchen_id 
-      FROM tbl_food_menus fm  LEFT JOIN (select * from tbl_food_menu_categories where del_status='Live') fmc ON fmc.id = fm.category_id LEFT JOIN (select * from tbl_sales_details where del_status='Live') sd ON sd.food_menu_id = fm.id LEFT JOIN (select kitchen_id,cat_id from tbl_kitchen_categories where del_status='Live') kt_cat ON kt_cat.cat_id = fm.category_id WHERE FIND_IN_SET(fm.id, '$getFM') AND fm.del_status='Live' GROUP BY fm.id order BY name ASC")->result();
+      $food_menu_ids = array_values(array_filter(array_map('intval', explode(',', $getFM))));
+      if (!$food_menu_ids) {
+        return false;
+      }
+
+      $this->db->select("fm.*,fmc.category_name,0 as item_sold", false);
+      $this->db->from("tbl_food_menus fm");
+      $this->db->join("tbl_food_menu_categories fmc", "fmc.id = fm.category_id AND fmc.del_status='Live'", "left");
+      $this->db->where_in("fm.id", $food_menu_ids);
+      $this->db->where("fm.del_status", "Live");
+      $this->db->order_by("fm.name", "ASC");
+      $result = $this->db->get()->result();
       if($result != false){
         return $result;
       }else{
         return false;
       }
+    }
+    public function getFoodMenuVariationsByParentIds($parent_ids){
+      $parent_ids = array_values(array_unique(array_filter(array_map('intval', $parent_ids))));
+      if (!$parent_ids) {
+        return array();
+      }
+
+      $this->db->select('*');
+      $this->db->from('tbl_food_menus');
+      $this->db->where_in('parent_id', $parent_ids);
+      $this->db->where('del_status', 'Live');
+      $this->db->order_by('id', 'ASC');
+      $rows = $this->db->get()->result();
+
+      $variations = array();
+      foreach ($rows as $row) {
+        $variations[$row->parent_id][] = $row;
+      }
+
+      return $variations;
+    }
+    public function getKitchenAssignmentsByCategoryIds($category_ids){
+      $category_ids = array_values(array_unique(array_filter(array_map('intval', $category_ids))));
+      if (!$category_ids) {
+        return array();
+      }
+
+      $outlet_id = $this->session->userdata('outlet_id');
+      $this->db->select('tbl_kitchen_categories.cat_id,tbl_kitchens.id as kitchen_id,tbl_kitchens.name as kitchen_name');
+      $this->db->from('tbl_kitchen_categories');
+      $this->db->join('tbl_kitchens', 'tbl_kitchens.id = tbl_kitchen_categories.kitchen_id', 'left');
+      $this->db->where('tbl_kitchen_categories.outlet_id', $outlet_id);
+      $this->db->where_in('tbl_kitchen_categories.cat_id', $category_ids);
+      $this->db->where('tbl_kitchen_categories.del_status', 'Live');
+      $rows = $this->db->get()->result();
+
+      $assignments = array();
+      foreach ($rows as $row) {
+        if (!isset($assignments[$row->cat_id])) {
+          $assignments[$row->cat_id] = $row;
+        }
+      }
+
+      return $assignments;
     }
     /**
      * get All Menu Categories

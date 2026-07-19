@@ -1514,6 +1514,15 @@ class Common_model extends CI_Model {
      * @access public
      * @param no
      */
+    private function getCashierCounterCondition($alias = '') {
+        $counter_id = (int)$this->session->userdata('counter_id');
+        if(!$counter_id){
+            return '';
+        }
+        $prefix = $alias ? $alias.'.' : '';
+        return " AND ".$prefix."counter_id='".$counter_id."'";
+    }
+
     public function getWaiterOrders() {
         $company_id = $this->session->userdata('company_id');
         $user_id = $this->session->userdata('user_id');
@@ -1525,7 +1534,8 @@ class Common_model extends CI_Model {
             $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update_admin=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id_admin='$user_id'")->result();
         }else{
             if($designation=="Cashier"){
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update_cashier=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id'")->result();
+                $counter_condition = $this->getCashierCounterCondition();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND pull_update_cashier=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id='$user_id'")->result();
             }
@@ -1541,7 +1551,8 @@ class Common_model extends CI_Model {
         $company_id = $this->session->userdata('company_id');
         $user_id = $this->session->userdata('user_id');
         $outlet_id = $this->session->userdata('outlet_id');
-        $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_sender=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND user_id='$user_id'")->result();
+        $counter_condition = $this->session->userdata('designation')=="Cashier" ? $this->getCashierCounterCondition() : '';
+        $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND is_update_sender=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND user_id='$user_id' $counter_condition")->result();
         return $result;
     }
     /**
@@ -1560,7 +1571,8 @@ class Common_model extends CI_Model {
             $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_receiver_admin=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id_admin='$user_id'")->result();
         }else{
             if($designation=="Cashier"){
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id'")->result();
+                $counter_condition = $this->getCashierCounterCondition();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND is_update_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id='$user_id'")->result();
             }
@@ -1577,6 +1589,8 @@ class Common_model extends CI_Model {
         $sale_no_all = escape_output($_POST['sale_no_all']);
         $company_id = $this->session->userdata('company_id');
         $outlet_id = $this->session->userdata('outlet_id');
+        $designation = $this->session->userdata('designation');
+        $counter_id = (int)$this->session->userdata('counter_id');
         $sale_no_string = '';
         if($sale_no_all){
             $expload = explode(",",$sale_no_all);
@@ -1589,7 +1603,11 @@ class Common_model extends CI_Model {
                         ->where('company_id', $company_id)
                         ->where('outlet_id', $outlet_id)
                         ->where('del_status', 'Live')
-                        ->get()
+                    ;
+                    if($designation=="Cashier" && $counter_id){
+                        $this->db->where('counter_id', $counter_id);
+                    }
+                    $data_sale = $this->db->get()
                         ->row();
                     if($data_sale){
 
@@ -1621,7 +1639,8 @@ class Common_model extends CI_Model {
             $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_delete_receiver_admin=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id_admin='$user_id'")->result();
         }else{
             if($designation=="Cashier"){
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no  in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live' AND is_delete_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id'")->result();
+                $counter_condition = $this->getCashierCounterCondition();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no  in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live' AND is_delete_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_delete_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id='$user_id'")->result();
             }
@@ -1648,7 +1667,8 @@ class Common_model extends CI_Model {
             $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update_admin=2 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id_admin='$user_id'")->result();
         }else{
             if($designation=="Cashier"){
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update_cashier=2 AND company_id='$company_id' AND outlet_id='$outlet_id'")->result();
+                $counter_condition = $this->getCashierCounterCondition();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND pull_update_cashier=2 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update=2 AND company_id='$company_id' AND outlet_id='$outlet_id' AND user_id='$user_id'")->result();
             }
@@ -1739,9 +1759,14 @@ class Common_model extends CI_Model {
      * @param no
      */
     public function alreadyInvoicedOrders() {
-        $sale_no_all = escape_output($_POST['sale_no_all']);
+        $sale_no_all_raw = isset($_POST['sale_no_all_for_invoice']) && $_POST['sale_no_all_for_invoice'] !== ''
+            ? $_POST['sale_no_all_for_invoice']
+            : (isset($_POST['sale_no_all']) ? $_POST['sale_no_all'] : '');
+        $sale_no_all = escape_output($sale_no_all_raw);
         $company_id = $this->session->userdata('company_id');
         $outlet_id = $this->session->userdata('outlet_id');
+        $designation = $this->session->userdata('designation');
+        $counter_id = (int)$this->session->userdata('counter_id');
         $spt = explode(',',$sale_no_all);
         $arr = array();
         foreach ($spt as $key=>$value){
@@ -1753,7 +1778,11 @@ class Common_model extends CI_Model {
                     ->where('company_id', $company_id)
                     ->where('outlet_id', $outlet_id)
                     ->where('del_status', 'Live')
-                    ->get()
+                ;
+                if($designation=="Cashier" && $counter_id){
+                    $this->db->where('counter_id', $counter_id);
+                }
+                $row = $this->db->get()
                     ->row();
                 if(isset($row) && $row){
                     $inline_arr = array();
@@ -1767,7 +1796,11 @@ class Common_model extends CI_Model {
                         ->where('company_id', $company_id)
                         ->where('outlet_id', $outlet_id)
                         ->where('del_status', 'Live')
-                        ->get()
+                    ;
+                    if($designation=="Cashier" && $counter_id){
+                        $this->db->where('counter_id', $counter_id);
+                    }
+                    $selected = $this->db->get()
                         ->row();
                     $pre_or_post_payment = $this->session->userdata('pre_or_post_payment');
                     if($pre_or_post_payment!=2 && $selected){

@@ -688,27 +688,27 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
      */
     public function saleReportByDate($startDate = '', $endDate = '', $user_id = '',$outlet_id='') {
         if ($startDate || $endDate || $user_id):
-            $this->db->select('sale_date,sum(total_payable) as total_payable,sum(total_refund) as total_refund');
+            $this->db->select('DATE(tbl_sales.date_time) as sale_date,sum(total_payable) as total_payable,sum(total_refund) as total_refund');
             $this->db->from('tbl_sales');
 
             if ($startDate != '' && $endDate != '') {
-                $this->db->where('sale_date>=', $startDate);
-                $this->db->where('sale_date <=', $endDate);
+                $this->db->where('tbl_sales.date_time >=', $startDate);
+                $this->db->where('tbl_sales.date_time <=', $endDate);
             }
             if ($startDate != '' && $endDate == '') {
-                $this->db->where('sale_date', $startDate);
+                $this->db->where('tbl_sales.date_time >=', $startDate);
             }
             if ($startDate == '' && $endDate != '') {
-                $this->db->where('sale_date', $endDate);
+                $this->db->where('tbl_sales.date_time <=', $endDate);
             }
 
             if ($user_id != '') {
-                $this->db->where('user_id', $user_id);
+                $this->db->where('tbl_sales.user_id', $user_id);
             }
             $this->db->where('order_status', '3');
-            $this->db->where('outlet_id', $outlet_id);
-            $this->db->group_by('sale_date');
-            $this->db->where('del_status', "Live");
+            $this->db->where('tbl_sales.outlet_id', $outlet_id);
+            $this->db->group_by('DATE(tbl_sales.date_time)');
+            $this->db->where('tbl_sales.del_status', "Live");
             $query_result = $this->db->get();
             $result = $query_result->result();
             return $result;

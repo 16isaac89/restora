@@ -300,6 +300,7 @@
             endif;
             ?>
             <p class="text-center"> <?php echo ($company_info->invoice_footer) ?></p>
+            <p class="text-center">Powered by mauzobooks.com 256755933629</p>
 
         </div>
         <div class="ir_clear"></div>

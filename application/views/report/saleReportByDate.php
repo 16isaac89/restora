@@ -1,4 +1,67 @@
 <link rel="stylesheet" href="<?php echo base_url(); ?>assets/dist/css/custom/report.css">
+<link rel="stylesheet" href="<?php echo base_url(); ?>assets/bower_components/datetimepicker/css/bootstrap-datetimepicker.css">
+
+<style>
+    .date-time-picker-wrapper {
+        position: relative;
+    }
+
+    .bootstrap-datetimepicker-widget.dropdown-menu {
+        z-index: 99999 !important;
+        background: #fff;
+        border: 1px solid #d2d6de;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .bootstrap-datetimepicker-widget table td,
+    .bootstrap-datetimepicker-widget table th,
+    .bootstrap-datetimepicker-widget .timepicker-hour,
+    .bootstrap-datetimepicker-widget .timepicker-minute,
+    .bootstrap-datetimepicker-widget .timepicker-second {
+        color: #333;
+    }
+
+    .bootstrap-datetimepicker-widget .datepicker {
+        background: #fff;
+    }
+
+    .bootstrap-datetimepicker-widget .datepicker-days,
+    .bootstrap-datetimepicker-widget .datepicker-months,
+    .bootstrap-datetimepicker-widget .datepicker-years,
+    .bootstrap-datetimepicker-widget .datepicker-decades {
+        display: block;
+    }
+
+    .bootstrap-datetimepicker-widget table thead tr:first-child th,
+    .bootstrap-datetimepicker-widget table thead tr:last-child th,
+    .bootstrap-datetimepicker-widget table td.day,
+    .bootstrap-datetimepicker-widget table td.old,
+    .bootstrap-datetimepicker-widget table td.new,
+    .bootstrap-datetimepicker-widget table td span,
+    .bootstrap-datetimepicker-widget .picker-switch,
+    .bootstrap-datetimepicker-widget .picker-switch td span,
+    .bootstrap-datetimepicker-widget .prev span,
+    .bootstrap-datetimepicker-widget .next span {
+        color: #333 !important;
+        background: #fff;
+    }
+
+    .bootstrap-datetimepicker-widget table td.day:hover,
+    .bootstrap-datetimepicker-widget table td span:hover,
+    .bootstrap-datetimepicker-widget table thead tr:first-child th:hover {
+        background: #f2f4f7 !important;
+    }
+
+    .bootstrap-datetimepicker-widget table td.active,
+    .bootstrap-datetimepicker-widget table td.active:hover,
+    .bootstrap-datetimepicker-widget table td span.active {
+        background: #337ab7 !important;
+        color: #fff !important;
+    }
+</style>
+
+<script src="<?php echo base_url(); ?>assets/bower_components/datetimepicker/js/moment.min.js"></script>
+<script src="<?php echo base_url(); ?>assets/bower_components/datetimepicker/js/bootstrap-datetimepicker.min.js"></script>
 
 <section class="main-content-wrapper">
   
@@ -15,7 +78,11 @@
         <?php if (isset($user_id) && $user_id):
             echo lang('user').": " . userName($user_id) . "</span>";
         endif; ?></h4>
-        <h4 class="txt-color-grey"><?= isset($start_date) && $start_date && isset($end_date) && $end_date ? lang('report_date') . date($this->session->userdata('date_format'), strtotime($start_date)) . " - " . date($this->session->userdata('date_format'), strtotime($end_date)) : '' ?><?= isset($start_date) && $start_date && !$end_date ? lang('report_date') . date($this->session->userdata('date_format'), strtotime($start_date)) : '' ?><?= isset($end_date) && $end_date && !$start_date ?lang('report_date') . date($this->session->userdata('date_format'), strtotime($end_date)) : '' ?>
+        <?php
+        $startDateTimeValue = isset($start_date) && $start_date ? date('Y-m-d H:i', strtotime($start_date)) : '';
+        $endDateTimeValue = isset($end_date) && $end_date ? date('Y-m-d H:i', strtotime($end_date)) : '';
+        ?>
+        <h4 class="txt-color-grey"><?= isset($start_date) && $start_date && isset($end_date) && $end_date ? lang('report_date') . date($this->session->userdata('date_format') . ' H:i', strtotime($start_date)) . " - " . date($this->session->userdata('date_format') . ' H:i', strtotime($end_date)) : '' ?><?= isset($start_date) && $start_date && !$end_date ? lang('report_date') . date($this->session->userdata('date_format') . ' H:i', strtotime($start_date)) : '' ?><?= isset($end_date) && $end_date && !$start_date ?lang('report_date') . date($this->session->userdata('date_format') . ' H:i', strtotime($end_date)) : '' ?>
         </h4>
     </div>
 
@@ -23,17 +90,17 @@
             <div class="row my-2">
                 <div class="col-sm-12 mb-3 col-md-4 col-lg-2">
                     <?php echo form_open(base_url() . 'Report/saleReportByDate') ?>
-                    <div class="form-group">
-                        <input tabindex="1" type="text" id="" name="startDate" readonly class="form-control customDatepicker"
-                            placeholder="<?php echo lang('start_date'); ?>" value="<?php echo set_value('startDate'); ?>">
+                    <div class="form-group date-time-picker-wrapper">
+                        <input tabindex="1" type="text" id="startDate" name="startDate" class="form-control customDateTimePicker"
+                            placeholder="<?php echo lang('start_date'); ?>" value="<?php echo escape_output(set_value('startDate', $startDateTimeValue)); ?>">
                     </div>
                 </div>
                 <div class="col-sm-12 mb-3 col-md-4 col-lg-2">
 
-                    <div class="form-group">
-                        <input tabindex="2" type="text" id="endMonth" name="endDate" readonly
-                            class="form-control customDatepicker" placeholder="<?php echo lang('end_date'); ?>"
-                            value="<?php echo set_value('endDate'); ?>">
+                    <div class="form-group date-time-picker-wrapper">
+                        <input tabindex="2" type="text" id="endDate" name="endDate"
+                            class="form-control customDateTimePicker" placeholder="<?php echo lang('end_date'); ?>"
+                            value="<?php echo escape_output(set_value('endDate', $endDateTimeValue)); ?>">
                     </div>
                 </div>
                 <div class="col-sm-12 mb-3 col-md-4 col-lg-2">
@@ -131,3 +198,51 @@
 <script src="<?php echo base_url(); ?>frequent_changing/newDesign/js/forTable.js"></script>
 
 <script src="<?php echo base_url(); ?>frequent_changing/js/custom_report.js"></script>
+<script>
+    $(function () {
+        $('.customDateTimePicker').each(function () {
+            $(this).datetimepicker({
+                format: 'YYYY-MM-DD HH:mm',
+                useCurrent: false,
+                sideBySide: true,
+                toolbarPlacement: 'bottom',
+                showTodayButton: false,
+                showClose: false,
+                widgetParent: $(this).closest('.date-time-picker-wrapper'),
+                widgetPositioning: {
+                    horizontal: 'left',
+                    vertical: 'bottom'
+                },
+                icons: {
+                    time: 'fa fa-clock',
+                    date: 'fa fa-calendar',
+                    up: 'fa fa-angle-up',
+                    down: 'fa fa-angle-down',
+                    previous: 'fa fa-angle-left',
+                    next: 'fa fa-angle-right',
+                    today: 'fa fa-calendar-check',
+                    clear: 'fa fa-trash',
+                    close: 'fa fa-xmark'
+                }
+            });
+        });
+
+        $('#startDate').on('dp.change', function (e) {
+            $('#endDate').data('DateTimePicker').minDate(e.date || false);
+        });
+
+        $('#endDate').on('dp.change', function (e) {
+            $('#startDate').data('DateTimePicker').maxDate(e.date || false);
+        });
+
+        $('.customDateTimePicker').on('dp.show', function () {
+            var picker = $(this).data('DateTimePicker');
+            if (picker) {
+                picker.widgetPositioning({
+                    horizontal: 'left',
+                    vertical: 'bottom'
+                });
+            }
+        });
+    });
+</script>

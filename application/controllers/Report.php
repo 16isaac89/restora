@@ -488,9 +488,9 @@ class Report extends Cl_Controller {
                 $outlet_id = $this->session->userdata('outlet_id');
             }
             $data['outlet_id'] = $outlet_id;
-            $start_date =htmlspecialcharscustom($this->input->post($this->security->xss_clean('startDate')));
+            $start_date = $this->normalizeDateTimeInput(htmlspecialcharscustom($this->input->post($this->security->xss_clean('startDate'))));
             $data['start_date'] = $start_date;
-            $end_date =htmlspecialcharscustom($this->input->post($this->security->xss_clean('endDate')));
+            $end_date = $this->normalizeDateTimeInput(htmlspecialcharscustom($this->input->post($this->security->xss_clean('endDate'))), true);
             $data['end_date'] = $end_date;
             $user_id =htmlspecialcharscustom($this->input->post($this->security->xss_clean('user_id')));
             $data['user_id'] = $user_id;
@@ -1022,8 +1022,12 @@ class Report extends Cl_Controller {
             return '';
         }
 
-        if ($end_of_minute && preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $normalized_date_time)) {
-            $timestamp += 59;
+        if ($end_of_minute) {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $normalized_date_time)) {
+                $timestamp += 86399;
+            } elseif (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $normalized_date_time)) {
+                $timestamp += 59;
+            }
         }
 
         return date('Y-m-d H:i:s', $timestamp);

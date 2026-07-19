@@ -38,6 +38,7 @@
       let outlet_tax_registration_no = $("#outlet_tax_registration_no").val();
       let associate_user_name = $("#associate_user_name").val();
       let invoice_footer = $("#invoice_footer").val();
+      let invoice_powered_by = "Powered by mauzobooks.com 256755933629";
       let inv_total_item = $("#inv_total_item").val();
       let inv_total = $("#inv_total").val();
       let inv_sub_total = $("#inv_sub_total").val();
@@ -885,14 +886,14 @@
     }
       /**************Get Sales Information from indexedDB End *******************/
       function displayOrderList(){
-          $("#order_details_holder").html('')
+          let selected_sale_no = $(".holder .order_details .single_order[data-selected=selected]").attr("data-sale_no") || "";
           let order_list_left = '';
           let running_sale_nos = [];
           let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
           let sales_id = '';
+          let i = 1;
           objectStore.openCursor(null, 'prev').onsuccess = function(event) {
               let cursor = event.target.result;
-              let i = 1;
               if (cursor) {
                   let orderData = cursor.value;
                   let orderInfo = orderData.order;
@@ -939,10 +940,11 @@
                           '<span>' + lang_waiter + ': ' + waiter_name + '</span><br>' +
                           '<span>' + lang_order + ': ' + rowData.sale_no + '</span>' +
                           '</div>';
+                      let selected_status = selected_sale_no == rowData.sale_no ? "selected" : "unselected";
                       if (i == 1) {
-                          order_list_left += '<div data-tippy-content="' + running_order_tooltip + '" data-started-cooking="0" data-done-cooking="0" class="running_order_custom running_order_tooltip single_order fix txt_5" data-merge_id="'+cursor.value.merge_id+'" data-selected="unselected"  order_type="'+rowData.order_type+'" data-sale_no="'+rowData.sale_no+'" data-total_payable="'+rowData.total_payable+'" data-table_id="'+table_id+'" data-sale_id="'+sales_id+'"  id="order_' + sale_no_plan + '">';
+                          order_list_left += '<div data-tippy-content="' + running_order_tooltip + '" data-started-cooking="0" data-done-cooking="0" class="running_order_custom running_order_tooltip single_order fix txt_5" data-merge_id="'+cursor.value.merge_id+'" data-selected="'+selected_status+'"  order_type="'+rowData.order_type+'" data-sale_no="'+rowData.sale_no+'" data-total_payable="'+rowData.total_payable+'" data-table_id="'+table_id+'" data-sale_id="'+sales_id+'"  id="order_' + sale_no_plan + '">';
                       } else {
-                          order_list_left += '<div data-tippy-content="' + running_order_tooltip + '" data-started-cooking="0" data-done-cooking="0" class="running_order_custom running_order_tooltip single_order fix" data-merge_id="'+cursor.value.merge_id+'" data-selected="unselected"  order_type="'+rowData.order_type+'" data-sale_no="'+rowData.sale_no+'" data-total_payable="'+rowData.total_payable+'" data-table_id="'+table_id+'" data-sale_id="'+sales_id+'"  id="order_' + sale_no_plan + '">';
+                          order_list_left += '<div data-tippy-content="' + running_order_tooltip + '" data-started-cooking="0" data-done-cooking="0" class="running_order_custom running_order_tooltip single_order fix" data-merge_id="'+cursor.value.merge_id+'" data-selected="'+selected_status+'"  order_type="'+rowData.order_type+'" data-sale_no="'+rowData.sale_no+'" data-total_payable="'+rowData.total_payable+'" data-table_id="'+table_id+'" data-sale_id="'+sales_id+'"  id="order_' + sale_no_plan + '">';
                       }
                       order_list_left += '<div class="inside_single_order_container fix">';
                       order_list_left += '<div class="single_order_content_holder_inside fix">';
@@ -958,20 +960,21 @@
                       order_list_left += "</div>";
                       order_list_left += "<div class='order_details' style='display:none'>"+orderInfo+"</div></div>";
 
-                      $("#order_details_holder").html(order_list_left);
-                      tippy(".running_order_tooltip", {
-                        allowHTML: true
-                      });
                       i++;
                   }
                   cursor.continue();
               } else {
+                  $("#order_details_holder").html(order_list_left);
+                  if(order_list_left){
+                      tippy(".running_order_tooltip", {
+                        allowHTML: true
+                      });
+                  }
                   apply_running_order_kot_status(running_sale_nos);
               }
           };
       }
       function apply_running_order_kot_status(saleNos){
-          $(".running_order_custom").removeClass("kot_status_pending_order kot_status_partial_order kot_status_printed_order");
           if(!Array.isArray(saleNos) || !saleNos.length){
               return;
           }
@@ -986,6 +989,7 @@
                   if(!response || response.status !== "success" || !response.summary){
                       return;
                   }
+                  $(".running_order_custom").removeClass("kot_status_pending_order kot_status_partial_order kot_status_printed_order");
                   $(".running_order_custom").each(function(){
                       let saleNo = $(this).attr("data-sale_no");
                       if(!saleNo || !response.summary[saleNo]){
@@ -2019,9 +2023,14 @@
             },
             function () {
                 let sale_no_all = '';
+                let sale_no_all_for_invoice = '';
                 $(".running_order_order_number").each(function() {
                     let running_order_order_number = $(this).text();
                     let added_offline_status = Number($(this).attr("data-added_offline_status"));
+                    if(running_order_order_number){
+                        sale_no_all_for_invoice+=running_order_order_number;
+                        sale_no_all_for_invoice+=",";
+                    }
                     if(added_offline_status==2){
                         sale_no_all+=running_order_order_number;
                         sale_no_all+=",";
@@ -2035,6 +2044,7 @@
                     async:false,
                     data: {
                         sale_no_all: sale_no_all,
+                        sale_no_all_for_invoice: sale_no_all_for_invoice,
                         csrf_irestoraplus: csrf_value_,
                     },
                     success: function (response) {
@@ -2049,11 +2059,15 @@
                                let order_object = order.self_order_content;
                                if (!$("#order_"+get_plan_string(sale_no_new)).length) {
                                     add_sale_by_ajax('',order_object,outlet_id_indexdb,company_id_indexdb,sale_no_new,"","","");
-                                    
                                     toastr['success']((sale_no_new+" "+pulled_successfully), '');
-                               } 
+                               }
                         }
-        
+
+                        let already_invoiced_orders = response.already_invoiced_orders;
+                        for (let key1 in already_invoiced_orders) {
+                            order = already_invoiced_orders[key1];
+                            deleteOrderForWaiter(order.sale_no);
+                        }
                     },
                     error: function () {
           
@@ -2147,6 +2161,20 @@
           str = str.toString();
           return (str.length < 3 ? getPadTwo("0" + str, 3) : str);
       }
+      function getPosTerminalCode() {
+          let outlet_id = $("#outlet_id_indexdb").val() || "0";
+          let counter_id = $("#counter_id").val() || "0";
+          let storage_key = "pos_terminal_code_" + outlet_id + "_" + counter_id;
+          let terminal_code = localStorage[storage_key];
+          if (!terminal_code || !/^[A-Z0-9]{2}$/.test(terminal_code)) {
+              terminal_code = Math.random().toString(36).replace(/[^a-z0-9]/gi, '').substr(0, 2).toUpperCase();
+              if (terminal_code.length < 2) {
+                  terminal_code = (terminal_code + "00").substr(0, 2);
+              }
+              localStorage[storage_key] = terminal_code;
+          }
+          return terminal_code;
+      }
       function getRandomCodeOne(length) {
           let result           = '';
           //this is random character pattern
@@ -2185,9 +2213,9 @@
               t_s = "0" + t_s;
           }
           let username_short = $("#username_short").val();
-          let invoice_counter_value = Number(localStorage['invoice_counter_value'])+1;
+          let invoice_counter_value = Number(localStorage['invoice_counter_value'] || 0)+1;
           localStorage['invoice_counter_value'] = invoice_counter_value;
-          let sale_no = username_short+twoDigitYear+mm+dd+"-"+getPadTwo(invoice_counter_value);
+          let sale_no = username_short+twoDigitYear+mm+dd+getPosTerminalCode()+"-"+getPadTwo(invoice_counter_value);
           return sale_no;
       }
       function getRandomCode(length) {
@@ -3038,6 +3066,7 @@
                                 </table>
                             <p style="text-align:center;margin:0px">` + (order.paid_date_time) + `</p>
                                 <p style="text-align:center;margin:0px"> `+invoice_footer+`</p>
+                                <p style="text-align:center;margin:0px">`+invoice_powered_by+`</p>
                                 <br>
                                 <div class="text-center"><div id="`+qrcode_id+`"></div></div>
                             </div>
@@ -14774,9 +14803,14 @@
         //waiter_order_module
         push_online();
         let sale_no_all = '';
+        let sale_no_all_for_invoice = '';
         $(".running_order_order_number").each(function() {
             let running_order_order_number = $(this).text();
             let added_offline_status = Number($(this).attr("data-added_offline_status"));
+            if(running_order_order_number){
+                sale_no_all_for_invoice+=running_order_order_number;
+                sale_no_all_for_invoice+=",";
+            }
             if(added_offline_status==2){
                 sale_no_all+=running_order_order_number;
                 sale_no_all+=",";
@@ -14790,6 +14824,7 @@
             timeout: 15000,
             data: {
                 sale_no_all: sale_no_all,
+                sale_no_all_for_invoice: sale_no_all_for_invoice,
                 csrf_irestoraplus: csrf_value_,
             },
             success: function (response) {

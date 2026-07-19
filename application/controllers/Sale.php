@@ -479,13 +479,21 @@ class Sale extends Cl_Controller {
         $data['customers'] = $this->Common_model->getAllByCompanyIdForDropdown($company_id, 'tbl_customers');
         $data['food_menus'] = $this->Sale_model->getAllFoodMenus();
         if(isset($data['food_menus']) && $data['food_menus']){
+            $food_menu_ids = array();
+            $category_ids = array();
+            foreach ($data['food_menus'] as $value){
+                $food_menu_ids[] = $value->id;
+                $category_ids[] = $value->category_id;
+            }
+            $variations_by_parent = $this->Sale_model->getFoodMenuVariationsByParentIds($food_menu_ids);
+            $kitchens_by_category = $this->Sale_model->getKitchenAssignmentsByCategoryIds($category_ids);
             foreach ($data['food_menus'] as $key=>$value){
-                $variations = $this->Common_model->getAllByCustomId($value->id,"parent_id","tbl_food_menus",$order='');
+                $variations = isset($variations_by_parent[$value->id]) ? $variations_by_parent[$value->id] : array();
                 $data['food_menus'][$key]->is_variation = isset($variations) && $variations?'Yes':'No';
                 $data['food_menus'][$key]->variations = $variations;
-                    $kitchen = getKitchenNameAndId($value->category_id);
-                    $data['food_menus'][$key]->kitchen_id =$kitchen[0];
-                    $data['food_menus'][$key]->kitchen_name =$kitchen[1];
+                $kitchen = isset($kitchens_by_category[$value->category_id]) ? $kitchens_by_category[$value->category_id] : null;
+                $data['food_menus'][$key]->kitchen_id = $kitchen ? $kitchen->kitchen_id : '';
+                $data['food_menus'][$key]->kitchen_name = $kitchen ? $kitchen->kitchen_name : '';
             }
         }
         $data['denominations'] = $this->Common_model->getDenomination($company_id);
@@ -1739,6 +1747,17 @@ class Sale extends Cl_Controller {
         $order_info['sale_no'] = $sale_no;
         $order_info['order_content'] = $order;
         $order_info['user_id'] = $user_id;
+        if($this->db->field_exists('company_id', 'tbl_running_orders')){
+            $order_info['company_id'] = $this->session->userdata('company_id');
+        }
+        if($this->db->field_exists('outlet_id', 'tbl_running_orders')){
+            $order_info['outlet_id'] = $this->session->userdata('outlet_id');
+        }
+        if($this->db->field_exists('counter_id', 'tbl_running_orders')){
+            $order_info['counter_id'] = isset($order_details->counter_id) && $order_details->counter_id
+                ? trim_checker($order_details->counter_id)
+                : $this->session->userdata('counter_id');
+        }
 
         if(isset($sale_d) && $sale_d){
             $this->db->where('id', $sale_d->id);
@@ -4556,8 +4575,9 @@ We hope to see you again!";
     }
     public function get_all_running_order_for_new_pc(){
         $user_id = $this->session->userdata('user_id');
-        $return_data = array(); 
-        $return_data['get_all_running_order_for_new_pc'] = get_all_running_order_for_new_pc($user_id); 
+        $return_data = array();
+        $return_data['get_all_running_order_for_new_pc'] = get_all_running_order_for_new_pc($user_id);
+        $return_data['already_invoiced_orders'] = $this->Common_model->alreadyInvoicedOrders();
         echo json_encode($return_data);
     }
     public function getOrderedTable(){

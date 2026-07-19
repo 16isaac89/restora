@@ -1214,7 +1214,20 @@
     }
     function getExistOrderInfo($sale_no) {
         $CI = & get_instance();
-        $user_information = $CI->db->query("SELECT * FROM tbl_running_orders where `sale_no`='$sale_no' AND del_status='Live'")->row();
+        $CI->db->select('*');
+        $CI->db->from('tbl_running_orders');
+        $CI->db->where('sale_no', $sale_no);
+        $CI->db->where('del_status', 'Live');
+        if($CI->db->field_exists('company_id', 'tbl_running_orders') && $CI->session->userdata('company_id')){
+            $CI->db->where('company_id', $CI->session->userdata('company_id'));
+        }
+        if($CI->db->field_exists('outlet_id', 'tbl_running_orders') && $CI->session->userdata('outlet_id')){
+            $CI->db->where('outlet_id', $CI->session->userdata('outlet_id'));
+        }
+        if($CI->db->field_exists('counter_id', 'tbl_running_orders') && $CI->session->userdata('counter_id')){
+            $CI->db->where('counter_id', $CI->session->userdata('counter_id'));
+        }
+        $user_information = $CI->db->get()->row();
 
         if(isset($user_information) && $user_information){
             return $user_information;
@@ -2119,7 +2132,20 @@
         $role = $CI->session->userdata('role');
         $designation = $CI->session->userdata('designation');
 
-        $running_orders = $CI->db->query("SELECT * FROM tbl_running_orders WHERE `user_id`='$user_id' AND del_status='Live'")->result();
+        $CI->db->select('*');
+        $CI->db->from('tbl_running_orders');
+        $CI->db->where('user_id', $user_id);
+        $CI->db->where('del_status', 'Live');
+        if($CI->db->field_exists('company_id', 'tbl_running_orders') && $company_id){
+            $CI->db->where('company_id', $company_id);
+        }
+        if($CI->db->field_exists('outlet_id', 'tbl_running_orders') && $outlet_id){
+            $CI->db->where('outlet_id', $outlet_id);
+        }
+        if($CI->db->field_exists('counter_id', 'tbl_running_orders') && $CI->session->userdata('counter_id')){
+            $CI->db->where('counter_id', $CI->session->userdata('counter_id'));
+        }
+        $running_orders = $CI->db->get()->result();
         if(!empty($running_orders)){
             return $running_orders;
         }
@@ -2152,6 +2178,12 @@
             ")->result();
         }
 
+        $counter_filter = '';
+        if($designation=="Cashier" && $CI->session->userdata('counter_id')){
+            $counter_id = (int)$CI->session->userdata('counter_id');
+            $counter_filter = "AND counter_id='$counter_id'";
+        }
+
         if($designation=="Cashier"){
             return $CI->db->query("
                 SELECT
@@ -2172,6 +2204,7 @@
                 AND is_accept=1
                 AND company_id='$company_id'
                 AND outlet_id='$outlet_id'
+                $counter_filter
             ")->result();
         }
 
@@ -2204,6 +2237,11 @@
         $company_id = $CI->session->userdata('company_id');
         $outlet_id = $CI->session->userdata('outlet_id');
         $designation = $CI->session->userdata('designation');
+        $counter_filter = '';
+        if($designation=="Cashier" && $CI->session->userdata('counter_id')){
+            $counter_id = (int)$CI->session->userdata('counter_id');
+            $counter_filter = "AND counter_id='$counter_id'";
+        }
         if($designation=="Cashier"){
             $total_users = $CI->db->query("
                             SELECT id, sale_no, self_order_content 
@@ -2212,6 +2250,7 @@
                             AND is_accept = 1 
                             AND company_id = '$company_id' 
                             AND outlet_id = '$outlet_id' 
+                            $counter_filter
                             AND del_status = 'Live'
                         ")->result();
         }else{
