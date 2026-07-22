@@ -1,6 +1,48 @@
 "use strict";
 let base_url = $("#base_url_").val();
 $(document).ready(function(){
+  function getCurrentSalesFilters() {
+    return {
+      from_datetime: $("#from_datetime").val().trim(),
+      to_datetime: $("#to_datetime").val().trim(),
+      search_value: $("#datatable_filter input[type='search']").val() || ""
+    };
+  }
+
+  function buildExportDailySalesUrl() {
+    let filters = getCurrentSalesFilters();
+    let params = $.param(filters);
+    return base_url + "Sale/exportDailySales" + (params ? "?" + params : "");
+  }
+
+  function exportAllFilteredAction(e, dt, button, config) {
+    let self = this;
+    let oldStart = dt.settings()[0]._iDisplayStart;
+    let originalAction = $.fn.dataTable.ext.buttons[config.extend].action;
+
+    dt.one("preXhr", function (e, settings, data) {
+      data.start = 0;
+      data.length = -1;
+    });
+
+    dt.one("draw", function (e, settings) {
+      originalAction.call(self, e, dt, button, config);
+
+      dt.one("preXhr", function (e, settings, data) {
+        settings._iDisplayStart = oldStart;
+        data.start = oldStart;
+      });
+
+      setTimeout(function () {
+        dt.ajax.reload(null, false);
+      }, 0);
+
+      return false;
+    });
+
+    dt.ajax.reload();
+  }
+
   if ($.fn.datetimepicker) {
     $(".salesDateTimePicker").each(function () {
       $(this).datetimepicker({
@@ -74,16 +116,17 @@ $(document).ready(function(){
           type: "POST",
           dataType: "json",
           data: function(d) {
-              // Only send the DataTables "start" and "length" params as in backend: !empty($_POST["length"]), !empty($_POST["start"])
+              let filters = getCurrentSalesFilters();
               return {
                   start: d.start,
                   length: d.length,
                   search: d.search,
+                  search_value: filters.search_value,
                   draw: d.draw,
                   order: d.order,
                   columns: d.columns, // just in case sorting is needed on server
-                  from_datetime: $("#from_datetime").val().trim(),
-                  to_datetime: $("#to_datetime").val().trim()
+                  from_datetime: filters.from_datetime,
+                  to_datetime: filters.to_datetime
               };
           }
       },
@@ -95,27 +138,32 @@ $(document).ready(function(){
         {
           extend:    'print',
           text:      '<i class="fa-solid fa-print"></i> Print',
-          titleAttr: 'print'
+          titleAttr: 'print',
+          action: exportAllFilteredAction
         },
         {
             extend:    'copyHtml5',
             text:      '<i class="fa-solid fa-copy"></i> Copy',
-            titleAttr: 'Copy'
+            titleAttr: 'Copy',
+            action: exportAllFilteredAction
         },
         {
             extend:    'excelHtml5',
             text:      '<i class="fa-solid fa-file-excel"></i> Excel',
-            titleAttr: 'Excel'
+            titleAttr: 'Excel',
+            action: exportAllFilteredAction
         },
         {
             extend:    'csvHtml5',
             text:      '<i class="fa-solid fa-file-csv"></i> CSV',
-            titleAttr: 'CSV'
+            titleAttr: 'CSV',
+            action: exportAllFilteredAction
         },
         {
             extend:    'pdfHtml5',
             text:      '<i class="fa-solid fa-file-pdf"></i> PDF',
-            titleAttr: 'PDF'
+            titleAttr: 'PDF',
+            action: exportAllFilteredAction
         }
     ],
       language: {
@@ -127,15 +175,30 @@ $(document).ready(function(){
   });
 
   $(document).on("click", "#filter_datetime_btn, #sale_search_btn", function () {
-      salesTable.ajax.reload();
+      salesTable.ajax.reload(null, true);
   });
 
   $(document).on("click", "#clear_datetime_btn", function () {
       $("#from_datetime").val("");
       $("#to_datetime").val("");
-      $("#from_datetime").data("DateTimePicker").clear();
-      $("#to_datetime").data("DateTimePicker").clear();
-      salesTable.ajax.reload();
+      if ($("#from_datetime").data("DateTimePicker")) {
+        $("#from_datetime").data("DateTimePicker").clear();
+      }
+      if ($("#to_datetime").data("DateTimePicker")) {
+        $("#to_datetime").data("DateTimePicker").clear();
+      }
+      salesTable.ajax.reload(null, true);
+  });
+
+  $(document).on("keypress", "#from_datetime, #to_datetime", function (e) {
+      if (e.which === 13) {
+        salesTable.ajax.reload(null, true);
+      }
+  });
+
+  $(document).on("click", 'a[href*="Sale/exportDailySales"]', function (e) {
+      e.preventDefault();
+      window.location.href = buildExportDailySalesUrl();
   });
 });
 

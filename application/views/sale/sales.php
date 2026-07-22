@@ -101,7 +101,7 @@ if ($this->session->flashdata('exception_1')) {
                 $export_daily_sale = $this->session->userdata('export_daily_sale');
                 if($export_daily_sale && $export_daily_sale=="enable"): ?>
             <div class="col-md-2">
-                <a href="<?php echo base_url() ?>Sale/exportDailySales"  data-access="exportDailySales-123" class="btn_list m-right btn bg-blue-btn delete menu_assign_class"><?php echo lang('exportDailySales'); ?></a>
+                <a href="<?php echo base_url() ?>Sale/exportDailySales"  data-access="exportDailySales-123" class="btn_list m-right btn bg-blue-btn menu_assign_class"><?php echo lang('exportDailySales'); ?></a>
             </div>
             <div class="col-md-2">
                 <a href="<?php echo base_url() ?>Sale/resetDailySales"  data-access="resetDailySales-123" class="btn_list m-right btn bg-blue-btn delete menu_assign_class"><?php echo lang('resetDailySales'); ?></a>

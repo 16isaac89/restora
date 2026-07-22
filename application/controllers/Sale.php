@@ -267,7 +267,12 @@ class Sale extends Cl_Controller {
         $objPHPExcel->getActiveSheet()->SetCellValue('I1', lang('payment_method'));
         // set Row
         $rowCount = 2;
-        $sales = $this->Sale_model->exportDailySale();
+        $filters = array(
+            'from_datetime' => $this->input->get('from_datetime', TRUE),
+            'to_datetime' => $this->input->get('to_datetime', TRUE),
+            'search_value' => $this->input->get('search_value', TRUE)
+        );
+        $sales = $this->Sale_model->exportDailySale($filters);
         foreach ($sales as $key=>$value){
             $items = '';
             $details = $this->Sale_model->getAllItemsFromSalesDetailBySalesId($value->id);

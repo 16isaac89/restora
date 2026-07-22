@@ -56,17 +56,15 @@ class Sale_model extends CI_Model {
      * @return object
      * @param no
      */
-    public function exportDailySale() {
+    public function exportDailySale($filters = array()) {
         $outlet_id = $this->session->userdata('outlet_id');
         $this->db->select('tbl_sales.*,tbl_users.full_name,tbl_payment_methods.name,tbl_customers.name as customer_name');
         $this->db->from('tbl_sales');
         $this->db->join('tbl_users', 'tbl_users.id = tbl_sales.user_id', 'left');
         $this->db->join('tbl_customers', 'tbl_customers.id = tbl_sales.customer_id', 'left');
         $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_sales.payment_method_id', 'left');
-        $this->db->where('order_status', '3');
-        $this->db->where('tbl_sales.outlet_id', $outlet_id);
-        $this->db->where('tbl_sales.del_status', 'Live');
-        $this->db->order_by('sale_date', 'ASC');
+        $this->applySaleListFilters($outlet_id, $filters);
+        $this->db->order_by('tbl_sales.date_time', 'ASC');
         $query_result = $this->db->get();
         $result = $query_result->result();
         return $result;
@@ -1869,8 +1867,69 @@ class Sale_model extends CI_Model {
      * @param int
      * @param int
      */
-    public function make_query($outlet_id)
+    private function getSaleFilterValue($filters, $key)
+    {
+        if (is_array($filters) && isset($filters[$key])) {
+            return trim($filters[$key]);
+        }
+
+        return '';
+    }
+
+    private function getSaleSearchValue($filters)
+    {
+        if (is_array($filters) && isset($filters['search']['value'])) {
+            return trim($filters['search']['value']);
+        }
+        if (is_array($filters) && isset($filters['search_value'])) {
+            return trim($filters['search_value']);
+        }
+
+        return '';
+    }
+
+    private function applySaleListFilters($outlet_id, $filters = array())
+    {
+        $search = $this->getSaleSearchValue($filters);
+        if ($search !== '') {
+            $this->db->group_start();
+                $this->db->like('tbl_sales.sale_no', $search);
+                $this->db->or_like('tbl_customers.name', $search);
+                $this->db->or_like('tbl_customers.phone', $search);
+                $this->db->or_like('tbl_users.full_name', $search);
+            $this->db->group_end();
+        }
+
+        $this->db->where('tbl_sales.outlet_id', $outlet_id);
+        $this->db->where('tbl_sales.order_status', '3');
+        $this->db->where('tbl_sales.del_status', 'Live');
+
+        $from_datetime = $this->getSaleFilterValue($filters, 'from_datetime');
+        $to_datetime = $this->getSaleFilterValue($filters, 'to_datetime');
+        if ($from_datetime !== '') {
+            $from_timestamp = strtotime(str_replace('T', ' ', $from_datetime));
+            if ($from_timestamp !== false) {
+                $this->db->where('tbl_sales.date_time >=', date('Y-m-d H:i:s', $from_timestamp));
+            }
+        }
+        if ($to_datetime !== '') {
+            $normalized_to_datetime = str_replace('T', ' ', $to_datetime);
+            $to_timestamp = strtotime($normalized_to_datetime);
+            if ($to_timestamp !== false) {
+                if (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $normalized_to_datetime)) {
+                    $to_timestamp += 59;
+                }
+                $this->db->where('tbl_sales.date_time <=', date('Y-m-d H:i:s', $to_timestamp));
+            }
+        }
+    }
+
+    public function make_query($outlet_id, $filters = null)
 {
+    if ($filters === null) {
+        $filters = $_POST;
+    }
+
     $this->db->select("
         tbl_sales.*,
         tbl_users.full_name,
@@ -1885,45 +1944,7 @@ class Sale_model extends CI_Model {
     $this->db->join('tbl_users', 'tbl_users.id = tbl_sales.user_id', 'left');
     $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_sales.payment_method_id', 'left');
 
-    /* -----------------------------
-       SEARCH (GROUPED OR CONDITIONS)
-    ------------------------------ */
-    if (!empty($_POST['search']['value'])) {
-        $search = $_POST['search']['value'];
-
-        $this->db->group_start();
-            $this->db->like('tbl_sales.sale_no', $search);
-            $this->db->or_like('tbl_customers.name', $search);
-            $this->db->or_like('tbl_customers.phone', $search);
-            $this->db->or_like('tbl_users.full_name', $search);
-        $this->db->group_end();
-    }
-
-    /* -----------------------------
-       FIXED FILTERS
-    ------------------------------ */
-    $this->db->where('tbl_sales.outlet_id', $outlet_id);
-    $this->db->where('tbl_sales.order_status', '3');
-    $this->db->where('tbl_sales.del_status', 'Live');
-
-    $from_datetime = isset($_POST['from_datetime']) ? trim($_POST['from_datetime']) : '';
-    $to_datetime = isset($_POST['to_datetime']) ? trim($_POST['to_datetime']) : '';
-    if ($from_datetime !== '') {
-        $from_timestamp = strtotime(str_replace('T', ' ', $from_datetime));
-        if ($from_timestamp !== false) {
-            $this->db->where('tbl_sales.date_time >=', date('Y-m-d H:i:s', $from_timestamp));
-        }
-    }
-    if ($to_datetime !== '') {
-        $normalized_to_datetime = str_replace('T', ' ', $to_datetime);
-        $to_timestamp = strtotime($normalized_to_datetime);
-        if ($to_timestamp !== false) {
-            if (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $normalized_to_datetime)) {
-                $to_timestamp += 59;
-            }
-            $this->db->where('tbl_sales.date_time <=', date('Y-m-d H:i:s', $to_timestamp));
-        }
-    }
+    $this->applySaleListFilters($outlet_id, $filters);
 
     /* -----------------------------
        ORDERING
