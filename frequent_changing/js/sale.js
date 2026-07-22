@@ -15,32 +15,38 @@ $(document).ready(function(){
     return base_url + "Sale/exportDailySales" + (params ? "?" + params : "");
   }
 
-  function exportAllFilteredAction(e, dt, button, config) {
-    let self = this;
-    let oldStart = dt.settings()[0]._iDisplayStart;
-    let originalAction = $.fn.dataTable.ext.buttons[config.extend].action;
+  function exportAllFilteredAction(buttonType) {
+    return function (e, dt, button, config) {
+      let self = this;
+      let oldStart = dt.settings()[0]._iDisplayStart;
+      let originalButton = $.fn.dataTable.ext.buttons[buttonType];
 
-    dt.one("preXhr", function (e, settings, data) {
-      data.start = 0;
-      data.length = -1;
-    });
-
-    dt.one("draw", function (e, settings) {
-      originalAction.call(self, e, dt, button, config);
+      if (!originalButton || typeof originalButton.action !== "function") {
+        return;
+      }
 
       dt.one("preXhr", function (e, settings, data) {
-        settings._iDisplayStart = oldStart;
-        data.start = oldStart;
+        data.start = 0;
+        data.length = -1;
       });
 
-      setTimeout(function () {
-        dt.ajax.reload(null, false);
-      }, 0);
+      dt.one("draw", function (e, settings) {
+        originalButton.action.call(self, e, dt, button, config);
 
-      return false;
-    });
+        dt.one("preXhr", function (e, settings, data) {
+          settings._iDisplayStart = oldStart;
+          data.start = oldStart;
+        });
 
-    dt.ajax.reload();
+        setTimeout(function () {
+          dt.ajax.reload(null, false);
+        }, 0);
+
+        return false;
+      });
+
+      dt.ajax.reload();
+    };
   }
 
   if ($.fn.datetimepicker) {
@@ -139,31 +145,31 @@ $(document).ready(function(){
           extend:    'print',
           text:      '<i class="fa-solid fa-print"></i> Print',
           titleAttr: 'print',
-          action: exportAllFilteredAction
+          action: exportAllFilteredAction("print")
         },
         {
             extend:    'copyHtml5',
             text:      '<i class="fa-solid fa-copy"></i> Copy',
             titleAttr: 'Copy',
-            action: exportAllFilteredAction
+            action: exportAllFilteredAction("copyHtml5")
         },
         {
             extend:    'excelHtml5',
             text:      '<i class="fa-solid fa-file-excel"></i> Excel',
             titleAttr: 'Excel',
-            action: exportAllFilteredAction
+            action: exportAllFilteredAction("excelHtml5")
         },
         {
             extend:    'csvHtml5',
             text:      '<i class="fa-solid fa-file-csv"></i> CSV',
             titleAttr: 'CSV',
-            action: exportAllFilteredAction
+            action: exportAllFilteredAction("csvHtml5")
         },
         {
             extend:    'pdfHtml5',
             text:      '<i class="fa-solid fa-file-pdf"></i> PDF',
             titleAttr: 'PDF',
-            action: exportAllFilteredAction
+            action: exportAllFilteredAction("pdfHtml5")
         }
     ],
       language: {
