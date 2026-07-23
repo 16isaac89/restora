@@ -38,6 +38,7 @@
       let outlet_tax_registration_no = $("#outlet_tax_registration_no").val();
       let associate_user_name = $("#associate_user_name").val();
       let invoice_footer = $("#invoice_footer").val();
+      let invoice_payment_footer = "MOMO No:156553<br>Airtel Merch:1522329";
       let invoice_powered_by = "Powered by mauzobooks.com 256755933629";
       let inv_total_item = $("#inv_total_item").val();
       let inv_total = $("#inv_total").val();
@@ -2286,8 +2287,8 @@
                 }
                 body {
                           font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
-                          font-size: 14px;
-                          line-height: 1.42857143;
+                          font-size: 11px;
+                          line-height: 1.25;
                           color: black;
                           background-color: #fff;
                       }
@@ -2374,13 +2375,13 @@
                               text-align: center;
                       }     
                       h3{
-                      font-size: 25px;
+                      font-size: 16px;
                       padding: 0px;
                       margin: 0px;
                       }    
                       h4{
                      margin-top: 0px;
-                      font-size: 20px;
+                      font-size: 13px;
                       } 
                       .kot-print-title{
                           font-size: 18px;
@@ -2434,7 +2435,7 @@
                       .table {
                           width: 100%;
                           max-width: 100%;
-                          margin-bottom: 5px;
+                          margin-bottom: 2px;
                       }
                       table {
                           background-color: transparent;
@@ -2446,7 +2447,7 @@
                       }
                       .table>tbody>tr>td, .table>tbody>tr>th, .table>tfoot>tr>td, .table>tfoot>tr>th, .table>thead>tr>td, .table>thead>tr>th {
                           padding: 5px;
-                          line-height: 1.42857143;
+                          line-height: 1.25;
                           vertical-align: top;
                           border-top: 1px solid #ddd;
                       }
@@ -2492,7 +2493,7 @@
                           
                     .table>tbody>tr>td, .table>tbody>tr>th, .table>tfoot>tr>td, .table>tfoot>tr>th, .table>thead>tr>td, .table>thead>tr>th {
                     padding: 2px;
-                    line-height: 1.42857143;
+                    line-height: 1.25;
                     vertical-align: top;
                     border-top: 0px solid black;
                     }
@@ -2503,7 +2504,7 @@
                     }
                     .table>tbody>tr>td, .table>tbody>tr>th, .table>tfoot>tr>td, .table>tfoot>tr>th, .table>thead>tr>td, .table>thead>tr>th {
                     padding: 2px;
-                    line-height: 1.42857143;
+                    line-height: 1.25;
                     vertical-align: top;
                     border-top: 0px solid black;
                     }
@@ -3066,6 +3067,7 @@
                                 </table>
                             <p style="text-align:center;margin:0px">` + (order.paid_date_time) + `</p>
                                 <p style="text-align:center;margin:0px"> `+invoice_footer+`</p>
+                                <p style="text-align:center;margin:0px">`+invoice_payment_footer+`</p>
                                 <p style="text-align:center;margin:0px">`+invoice_powered_by+`</p>
                                 <br>
                                 <div class="text-center"><div id="`+qrcode_id+`"></div></div>

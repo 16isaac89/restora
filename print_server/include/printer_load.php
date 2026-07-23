@@ -124,6 +124,9 @@ function print_receipt($data) {
     $printer->setJustification(Printer::JUSTIFY_CENTER);
     $printer->setEmphasis(true);
     $printer->text(printText($data->invoice_footer,$data->characters_per_line)."\n");
+    if(isset($data->payment_footer) && $data->payment_footer){
+        $printer->text(printText($data->payment_footer,$data->characters_per_line)."\n");
+    }
     if(isset($data->powered_by_footer) && $data->powered_by_footer){
         $printer->text(printText($data->powered_by_footer,$data->characters_per_line)."\n");
     }

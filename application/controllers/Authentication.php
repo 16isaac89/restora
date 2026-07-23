@@ -2906,6 +2906,7 @@ class Authentication extends Cl_Controller {
                 $data['collect_tax'] = $company->collect_tax;
                 $data['tax_registration_no'] = $company->tax_registration_no;
                 $data['invoice_footer'] = $company->invoice_footer;
+                $data['payment_footer'] = "MOMO No:156553\nAirtel Merch:1522329";
                 $data['powered_by_footer'] = 'Powered by mauzobooks.com 256755933629';
                 $data['type'] = $printer->type;
                 $data['printer_ip_address'] = $printer->printer_ip_address;

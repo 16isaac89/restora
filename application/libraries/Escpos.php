@@ -99,6 +99,12 @@ class Escpos
         $this->printer->setJustification(Printer::JUSTIFY_CENTER);
         $this->printer->setEmphasis(true);
         $this->printer->text(printText($data->invoice_footer,$this->char_per_line)."\n");
+        if(isset($data->payment_footer) && $data->payment_footer){
+            $this->printer->text(printText($data->payment_footer,$this->char_per_line)."\n");
+        }
+        if(isset($data->powered_by_footer) && $data->powered_by_footer){
+            $this->printer->text(printText($data->powered_by_footer,$this->char_per_line)."\n");
+        }
         $this->printer->qrCode($data->random_code,Printer::QR_ECLEVEL_L, 6);
         $this->printer->setEmphasis(false);
         $this->printer->cut();
