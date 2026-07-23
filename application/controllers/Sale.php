@@ -249,74 +249,144 @@ class Sale extends Cl_Controller {
         }
         //end check access function
 
-        $fileName = 'Sale Data-'.(date("Y-m-d")).'.xlsx';
+        $format = strtolower($this->input->get('format', TRUE));
+        if(!$format){
+            $format = 'xlsx';
+        }
+        $filters = array(
+            'from_datetime' => $this->input->get('from_datetime', TRUE),
+            'to_datetime' => $this->input->get('to_datetime', TRUE),
+            'search_value' => $this->input->get('search_value', TRUE)
+        );
+        $sales = $this->Sale_model->exportDailySaleRows($filters);
+        $headers = array(
+            lang('customer'),
+            lang('date'),
+            lang('reference'),
+            lang('items'),
+            lang('subtotal'),
+            lang('discount'),
+            lang('vat'),
+            lang('g_total'),
+            lang('payment_method')
+        );
+        $rows = array();
+        foreach ($sales as $key=>$value){
+            $rows[] = array(
+                escape_output($value->customer_name),
+                escape_output(date($this->session->userdata('date_format'), strtotime($value->sale_date))),
+                escape_output($value->sale_no),
+                isset($value->item_summary) ? $value->item_summary : '',
+                escape_output(getAmtP($value->sub_total)),
+                escape_output(getAmtP($value->total_discount_amount)),
+                escape_output(getAmtP($value->vat)),
+                escape_output(getAmtP($value->total_payable)),
+                escape_output(isset($value->payment_summary) ? $value->payment_summary : '')
+            );
+        }
+
+        $fileName = 'Sale Data-'.(date("Y-m-d"));
+
+        if($format=="csv"){
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="'.$fileName.'.csv"');
+            $output = fopen('php://output', 'w');
+            fputcsv($output, $headers);
+            foreach ($rows as $row){
+                fputcsv($output, $row);
+            }
+            fclose($output);
+            exit;
+        }
+
+        if($format=="json"){
+            header('Content-Type: application/json');
+            echo json_encode(array('data' => array_merge(array($headers), $rows)));
+            exit;
+        }
+
+        if($format=="print" || $format=="pdf"){
+            $html = '<!doctype html><html><head><meta charset="utf-8"><title>'.escape_output($fileName).'</title><style>body{font-family:Arial,sans-serif;font-size:12px;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}th{background:#f2f2f2}</style></head><body>';
+            $html .= '<h3>'.escape_output($fileName).'</h3><table><thead><tr>';
+            foreach ($headers as $heading){
+                $html .= '<th>'.escape_output($heading).'</th>';
+            }
+            $html .= '</tr></thead><tbody>';
+            foreach ($rows as $row){
+                $html .= '<tr>';
+                foreach ($row as $cell){
+                    $html .= '<td>'.nl2br(escape_output($cell)).'</td>';
+                }
+                $html .= '</tr>';
+            }
+            $html .= '</tbody></table>';
+
+            if($format=="pdf"){
+                try {
+                    $vendor_autoload = FCPATH.'vendor/autoload.php';
+                    if(file_exists($vendor_autoload)){
+                        require_once $vendor_autoload;
+                    }
+                    if(class_exists('\Mpdf\Mpdf')){
+                        $mpdf = new \Mpdf\Mpdf(array(
+                            'mode' => 'utf-8',
+                            'format' => 'A4-L',
+                            'tempDir' => sys_get_temp_dir()
+                        ));
+                        $mpdf->WriteHTML($html);
+                        $mpdf->Output($fileName.'.pdf', 'D');
+                        exit;
+                    } else if(class_exists('mPDF')){
+                        $mpdf = new mPDF('utf-8', 'A4-L', 0, '', 10, 10, 10, 10);
+                        $mpdf->WriteHTML($html);
+                        $mpdf->Output($fileName.'.pdf', 'D');
+                        exit;
+                    }
+                } catch (Exception $e) {
+                    log_message('error', 'Sale export PDF generation error: '.$e->getMessage());
+                }
+            }
+
+            $html .= '<script>window.onload=function(){window.print();}</script></body></html>';
+            header('Content-Type: text/html; charset=utf-8');
+            echo $html;
+            exit;
+        }
 
         // load excel library
         $this->load->library('excel');
         $objPHPExcel = new PHPExcel();
         $objPHPExcel->setActiveSheetIndex(0);
         // set Header
-        $objPHPExcel->getActiveSheet()->SetCellValue('A1', lang('customer'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('B1', lang('date'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('C1', lang('reference'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('D1', lang('items'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('E1', lang('subtotal'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('F1', lang('discount'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('G1', lang('vat'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('H1', lang('g_total'));
-        $objPHPExcel->getActiveSheet()->SetCellValue('I1', lang('payment_method'));
+        $objPHPExcel->getActiveSheet()->SetCellValue('A1', $headers[0]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('B1', $headers[1]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('C1', $headers[2]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('D1', $headers[3]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('E1', $headers[4]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('F1', $headers[5]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('G1', $headers[6]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('H1', $headers[7]);
+        $objPHPExcel->getActiveSheet()->SetCellValue('I1', $headers[8]);
         // set Row
         $rowCount = 2;
-        $filters = array(
-            'from_datetime' => $this->input->get('from_datetime', TRUE),
-            'to_datetime' => $this->input->get('to_datetime', TRUE),
-            'search_value' => $this->input->get('search_value', TRUE)
-        );
-        $sales = $this->Sale_model->exportDailySale($filters);
-        foreach ($sales as $key=>$value){
-            $items = '';
-            $details = $this->Sale_model->getAllItemsFromSalesDetailBySalesId($value->id);
-            foreach ($details as $key1=>$value1){
-                $items.= $value1->menu_name." X ".$value1->qty;
-                if($key1 < (sizeof($details) -1)){
-                    $items.= "\n";
-                }
-            }
-            $payment_details = '';
-            $outlet_id = $this->session->userdata('outlet_id');
-            $salePaymentDetails = salePaymentDetails($value->id,$outlet_id);
-            if(isset($salePaymentDetails) && $salePaymentDetails):
-                ?>
-                <?php foreach ($salePaymentDetails as $ky=>$payment):
-                $txt_point = '';
-                if($payment->id==5){
-                    $txt_point = " (Usage Point:".$payment->usage_point.")";
-                }
-                $payment_details.= escape_output($payment->payment_name.$txt_point).":".escape_output(getAmtPCustom($payment->amount));
-                if($ky<sizeof($salePaymentDetails)-1){
-                    $payment_details.=" - ";
-                }
-            endforeach;
-            endif;
-
-
-            $objPHPExcel->getActiveSheet()->SetCellValue('A' . $rowCount, escape_output($value->customer_name));
-            $objPHPExcel->getActiveSheet()->SetCellValue('B' . $rowCount, escape_output(date($this->session->userdata('date_format'), strtotime($value->sale_date))));
-            $objPHPExcel->getActiveSheet()->SetCellValue('C' . $rowCount, escape_output($value->sale_no));
-            $objPHPExcel->getActiveSheet()->SetCellValue('D' . $rowCount, $items);
-            $objPHPExcel->getActiveSheet()->SetCellValue('E' . $rowCount, escape_output(getAmtP($value->sub_total)));
-            $objPHPExcel->getActiveSheet()->SetCellValue('F' . $rowCount, escape_output(getAmtP($value->total_discount_amount)));
-            $objPHPExcel->getActiveSheet()->SetCellValue('G' . $rowCount, escape_output(getAmtP($value->vat)));
-            $objPHPExcel->getActiveSheet()->SetCellValue('H' . $rowCount, escape_output(getAmtP($value->total_payable)));
-            $objPHPExcel->getActiveSheet()->SetCellValue('I' . $rowCount, escape_output($payment_details));
+        foreach ($rows as $row){
+            $objPHPExcel->getActiveSheet()->SetCellValue('A' . $rowCount, $row[0]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('B' . $rowCount, $row[1]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('C' . $rowCount, $row[2]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('D' . $rowCount, $row[3]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('E' . $rowCount, $row[4]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('F' . $rowCount, $row[5]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('G' . $rowCount, $row[6]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('H' . $rowCount, $row[7]);
+            $objPHPExcel->getActiveSheet()->SetCellValue('I' . $rowCount, $row[8]);
             $rowCount++;
         }
         $objPHPExcel->getActiveSheet()->getStyle('D')->getAlignment()->setWrapText(true);
         $objWriter  = new PHPExcel_Writer_Excel2007($objPHPExcel);
-        $objWriter->save("asset/excel/".$fileName);
+        $objWriter->save("asset/excel/".$fileName.'.xlsx');
         // download file
         header("Content-Type: application/vnd.ms-excel");
-        redirect(base_url()."asset/excel/".$fileName);
+        redirect(base_url()."asset/excel/".$fileName.'.xlsx');
     }
 
     /**
@@ -4849,6 +4919,7 @@ We hope to see you again!";
                     "data"            => $data
                 ];
 
+                header('Content-Type: application/json');
                 echo json_encode($output);
                 exit;
             }

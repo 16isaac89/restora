@@ -9,44 +9,40 @@ $(document).ready(function(){
     };
   }
 
-  function buildExportDailySalesUrl() {
+  function buildExportDailySalesUrl(format) {
     let filters = getCurrentSalesFilters();
+    if (format) {
+      filters.format = format;
+    }
     let params = $.param(filters);
     return base_url + "Sale/exportDailySales" + (params ? "?" + params : "");
   }
 
-  function exportAllFilteredAction(buttonType) {
-    return function (e, dt, button, config) {
-      let self = this;
-      let oldStart = dt.settings()[0]._iDisplayStart;
-      let originalButton = $.fn.dataTable.ext.buttons[buttonType];
+  function openSalesExport(format) {
+    let url = buildExportDailySalesUrl(format);
+    if (format === "print" || format === "pdf") {
+      window.open(url, "_blank");
+      return;
+    }
+    window.location.href = url;
+  }
 
-      if (!originalButton || typeof originalButton.action !== "function") {
+  function copySalesExport() {
+    $.getJSON(buildExportDailySalesUrl("json"), function (response) {
+      let rows = response && response.data ? response.data : [];
+      let text = rows.map(function (row) {
+        return row.join("\t");
+      }).join("\n");
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
         return;
       }
 
-      dt.one("preXhr", function (e, settings, data) {
-        data.start = 0;
-        data.length = -1;
-      });
-
-      dt.one("draw", function (e, settings) {
-        originalButton.action.call(self, e, dt, button, config);
-
-        dt.one("preXhr", function (e, settings, data) {
-          settings._iDisplayStart = oldStart;
-          data.start = oldStart;
-        });
-
-        setTimeout(function () {
-          dt.ajax.reload(null, false);
-        }, 0);
-
-        return false;
-      });
-
-      dt.ajax.reload();
-    };
+      let textarea = $("<textarea>").val(text).appendTo("body").select();
+      document.execCommand("copy");
+      textarea.remove();
+    });
   }
 
   if ($.fn.datetimepicker) {
@@ -129,8 +125,6 @@ $(document).ready(function(){
                   search: d.search,
                   search_value: filters.search_value,
                   draw: d.draw,
-                  order: d.order,
-                  columns: d.columns, // just in case sorting is needed on server
                   from_datetime: filters.from_datetime,
                   to_datetime: filters.to_datetime
               };
@@ -145,31 +139,39 @@ $(document).ready(function(){
           extend:    'print',
           text:      '<i class="fa-solid fa-print"></i> Print',
           titleAttr: 'print',
-          action: exportAllFilteredAction("print")
+          action: function () {
+            openSalesExport("print");
+          }
         },
         {
             extend:    'copyHtml5',
             text:      '<i class="fa-solid fa-copy"></i> Copy',
             titleAttr: 'Copy',
-            action: exportAllFilteredAction("copyHtml5")
+            action: copySalesExport
         },
         {
             extend:    'excelHtml5',
             text:      '<i class="fa-solid fa-file-excel"></i> Excel',
             titleAttr: 'Excel',
-            action: exportAllFilteredAction("excelHtml5")
+            action: function () {
+              openSalesExport("xlsx");
+            }
         },
         {
             extend:    'csvHtml5',
             text:      '<i class="fa-solid fa-file-csv"></i> CSV',
             titleAttr: 'CSV',
-            action: exportAllFilteredAction("csvHtml5")
+            action: function () {
+              openSalesExport("csv");
+            }
         },
         {
             extend:    'pdfHtml5',
             text:      '<i class="fa-solid fa-file-pdf"></i> PDF',
             titleAttr: 'PDF',
-            action: exportAllFilteredAction("pdfHtml5")
+            action: function () {
+              openSalesExport("pdf");
+            }
         }
     ],
       language: {
@@ -204,7 +206,7 @@ $(document).ready(function(){
 
   $(document).on("click", 'a[href*="Sale/exportDailySales"]', function (e) {
       e.preventDefault();
-      window.location.href = buildExportDailySalesUrl();
+      window.location.href = buildExportDailySalesUrl("xlsx");
   });
 });
 

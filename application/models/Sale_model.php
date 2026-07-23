@@ -69,6 +69,37 @@ class Sale_model extends CI_Model {
         $result = $query_result->result();
         return $result;
     }
+
+    public function exportDailySaleRows($filters = array()) {
+        $outlet_id = $this->session->userdata('outlet_id');
+        $this->db->query("SET SESSION group_concat_max_len = 1000000");
+
+        $items_query = "(SELECT sales_id, GROUP_CONCAT(CONCAT(menu_name, ' X ', qty) ORDER BY id ASC SEPARATOR '\n') AS item_summary FROM tbl_sales_details WHERE del_status = 'Live' GROUP BY sales_id) sale_items";
+        $payments_query = "(SELECT sp.sale_id, GROUP_CONCAT(CONCAT(COALESCE(pm.name, sp.payment_name, ''), IF(sp.payment_id = 5, CONCAT(' (Usage Point:', COALESCE(sp.usage_point, 0), ')'), ''), ':', FORMAT(COALESCE(sp.amount, 0), 2)) ORDER BY sp.id ASC SEPARATOR ' - ') AS payment_summary FROM tbl_sale_payments sp LEFT JOIN tbl_payment_methods pm ON pm.id = sp.payment_id WHERE sp.del_status = 'Live' AND sp.outlet_id = ".(int)$outlet_id." GROUP BY sp.sale_id) sale_payments";
+
+        $this->db->select("
+            tbl_sales.id,
+            tbl_sales.sale_no,
+            tbl_sales.sale_date,
+            tbl_sales.sub_total,
+            tbl_sales.total_discount_amount,
+            tbl_sales.vat,
+            tbl_sales.total_payable,
+            tbl_users.full_name,
+            tbl_customers.name AS customer_name,
+            sale_items.item_summary,
+            sale_payments.payment_summary
+        ");
+        $this->db->from('tbl_sales');
+        $this->db->join('tbl_users', 'tbl_users.id = tbl_sales.user_id', 'left');
+        $this->db->join('tbl_customers', 'tbl_customers.id = tbl_sales.customer_id', 'left');
+        $this->db->join($items_query, 'sale_items.sales_id = tbl_sales.id', 'left', false);
+        $this->db->join($payments_query, 'sale_payments.sale_id = tbl_sales.id', 'left', false);
+        $this->applySaleListFilters($outlet_id, $filters);
+        $this->db->order_by('tbl_sales.date_time', 'ASC');
+
+        return $this->db->get()->result();
+    }
     /**
      * get Item Menus
      * @access public
@@ -1869,7 +1900,7 @@ class Sale_model extends CI_Model {
      */
     private function getSaleFilterValue($filters, $key)
     {
-        if (is_array($filters) && isset($filters[$key])) {
+        if (is_array($filters) && isset($filters[$key]) && $filters[$key] !== null) {
             return trim($filters[$key]);
         }
 
@@ -1878,10 +1909,10 @@ class Sale_model extends CI_Model {
 
     private function getSaleSearchValue($filters)
     {
-        if (is_array($filters) && isset($filters['search']['value'])) {
+        if (is_array($filters) && isset($filters['search']) && is_array($filters['search']) && isset($filters['search']['value'])) {
             return trim($filters['search']['value']);
         }
-        if (is_array($filters) && isset($filters['search_value'])) {
+        if (is_array($filters) && isset($filters['search_value']) && $filters['search_value'] !== null) {
             return trim($filters['search_value']);
         }
 
