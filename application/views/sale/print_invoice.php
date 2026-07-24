@@ -328,7 +328,7 @@
                 ?>
                 <p style="text-align:center"><?php echo escape_output(($sale_object->paid_date_time)); ?></p>
                 <p class="text-center"> <?php echo ($this->session->userdata('invoice_footer')) ?></p>
-                <p class="text-center">MOMO No:156553<br>Airtel Merch:1522329</p>
+                <p class="text-center">MOMO No:788049<br>Airtel Merch:6881515</p>
                 <p class="text-center">Powered by mauzobooks.com 256755933629</p>
                 <div class="text-center"><img src="<?php echo base_url()?>qr_code/<?php echo escape_output($sale_object->id)?>.png"></div>
             </div>

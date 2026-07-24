@@ -300,7 +300,7 @@
             endif;
             ?>
             <p class="text-center"> <?php echo ($company_info->invoice_footer) ?></p>
-            <p class="text-center">MOMO No:156553<br>Airtel Merch:1522329</p>
+            <p class="text-center">MOMO No:788049<br>Airtel Merch:6881515</p>
             <p class="text-center">Powered by mauzobooks.com 256755933629</p>
 
         </div>

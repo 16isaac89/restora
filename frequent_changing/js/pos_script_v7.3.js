@@ -38,7 +38,7 @@
       let outlet_tax_registration_no = $("#outlet_tax_registration_no").val();
       let associate_user_name = $("#associate_user_name").val();
       let invoice_footer = $("#invoice_footer").val();
-      let invoice_payment_footer = "MOMO No:156553<br>Airtel Merch:1522329";
+      let invoice_payment_footer = "MOMO No:788049<br>Airtel Merch:6881515";
       let invoice_powered_by = "Powered by mauzobooks.com 256755933629";
       let inv_total_item = $("#inv_total_item").val();
       let inv_total = $("#inv_total").val();
