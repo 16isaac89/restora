@@ -1535,7 +1535,7 @@ class Common_model extends CI_Model {
         }else{
             if($designation=="Cashier"){
                 $counter_condition = $this->getCashierCounterCondition();
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND pull_update_cashier=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update_cashier=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update=1 AND is_accept=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id='$user_id'")->result();
             }
@@ -1552,7 +1552,7 @@ class Common_model extends CI_Model {
         $user_id = $this->session->userdata('user_id');
         $outlet_id = $this->session->userdata('outlet_id');
         $counter_condition = $this->session->userdata('designation')=="Cashier" ? $this->getCashierCounterCondition() : '';
-        $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND is_update_sender=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND user_id='$user_id' $counter_condition")->result();
+        $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_sender=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND user_id='$user_id' $counter_condition")->result();
         return $result;
     }
     /**
@@ -1572,7 +1572,7 @@ class Common_model extends CI_Model {
         }else{
             if($designation=="Cashier"){
                 $counter_condition = $this->getCashierCounterCondition();
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND is_update_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_update_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id='$user_id'")->result();
             }
@@ -1640,7 +1640,7 @@ class Common_model extends CI_Model {
         }else{
             if($designation=="Cashier"){
                 $counter_condition = $this->getCashierCounterCondition();
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no  in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live' AND is_delete_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no  in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live' AND is_delete_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no not in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND is_delete_receiver=1 AND company_id='$company_id' AND outlet_id='$outlet_id' AND order_receiving_id='$user_id'")->result();
             }
@@ -1668,7 +1668,7 @@ class Common_model extends CI_Model {
         }else{
             if($designation=="Cashier"){
                 $counter_condition = $this->getCashierCounterCondition();
-                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id' $counter_condition) AND del_status='Live'  AND pull_update_cashier=2 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
+                $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update_cashier=2 AND company_id='$company_id' AND outlet_id='$outlet_id' $counter_condition")->result();
             }else{
                 $result = $this->db->query("SELECT id,sale_no,self_order_content FROM `tbl_kitchen_sales` WHERE sale_no in (select distinct sale_no FROM tbl_sales WHERE del_status='Live' AND outlet_id='$outlet_id' AND company_id='$company_id') AND del_status='Live'  AND pull_update=2 AND company_id='$company_id' AND outlet_id='$outlet_id' AND user_id='$user_id'")->result();
             }

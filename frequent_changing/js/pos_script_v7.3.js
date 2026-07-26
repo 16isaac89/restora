@@ -905,20 +905,35 @@
           return Number(orderData && orderData.is_invoice) === 2 || Number(rowData && rowData.is_invoice) === 2;
       }
 
+      let localOrderWriteLocks = {};
       function saveLocalOrderBySaleNo(storeName, orderInfo, saleNo, onSuccess, onError) {
+          let lockKey = storeName + ":" + saleNo;
+          if (localOrderWriteLocks[lockKey]) {
+              setTimeout(function () {
+                  saveLocalOrderBySaleNo(storeName, orderInfo, saleNo, onSuccess, onError);
+              }, 250);
+              return;
+          }
+          localOrderWriteLocks[lockKey] = true;
+          function releaseLock() {
+              delete localOrderWriteLocks[lockKey];
+          }
           let objectStore = db.transaction([storeName], "readwrite").objectStore(storeName);
-          objectStore.openCursor().onsuccess = function(event) {
+          let cursorRequest = objectStore.openCursor();
+          cursorRequest.onsuccess = function(event) {
               let cursor = event.target.result;
               if (cursor) {
                   if (localOrderSaleNo(cursor.value) == saleNo) {
                       let updateData = $.extend({}, cursor.value, orderInfo);
                       let updateRequest = cursor.update(updateData);
                       updateRequest.onsuccess = function(event) {
+                          releaseLock();
                           if (typeof onSuccess === "function") {
                               onSuccess(event);
                           }
                       };
                       updateRequest.onerror = function(event) {
+                          releaseLock();
                           if (typeof onError === "function") {
                               onError(event);
                           }
@@ -929,15 +944,23 @@
               } else {
                   let request = db.transaction(storeName, "readwrite").objectStore(storeName).add(orderInfo);
                   request.onsuccess = function(event) {
+                      releaseLock();
                       if (typeof onSuccess === "function") {
                           onSuccess(event);
                       }
                   };
                   request.onerror = function(event) {
+                      releaseLock();
                       if (typeof onError === "function") {
                           onError(event);
                       }
                   };
+              }
+          };
+          cursorRequest.onerror = function(event) {
+              releaseLock();
+              if (typeof onError === "function") {
+                  onError(event);
               }
           };
       }
@@ -7227,6 +7250,7 @@
       }
       function closeOrderForWaiter(sale_no){
           let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
+          let deleted = false;
           objectStore.openCursor().onsuccess = function(event) {
               let cursor = event.target.result;
               if (cursor) {
@@ -7234,16 +7258,14 @@
                   let sale_no_local = rowData.sale_no;
   
                   if(sale_no_local == sale_no) {
-                      let orderData = cursor.value;
-                      let orderInfo = orderData.order;
-                      let request = db.transaction("sales", "readwrite").objectStore("sales").delete(cursor.key);
-                      request.onsuccess = function(event) {
-                          removeOrderTablesBySaleId(cursor.value.sale_no,'');
-                          displayOrderList();
-                      }
+                      cursor.delete();
+                      deleted = true;
                   }
   
                   cursor.continue();
+              } else if (deleted) {
+                  removeOrderTablesBySaleId(sale_no,'');
+                  displayOrderList();
               }
           }
       }
@@ -7271,19 +7293,20 @@
       }
       function deleteOrderForWaiter(sale_no){
           let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
+          let deleted = false;
           objectStore.openCursor().onsuccess = function(event) {
               let cursor = event.target.result;
               if (cursor) {
                   let rowData = JSON.parse(cursor.value.order);
                   let sale_no_local = rowData.sale_no;
                   if(sale_no_local == sale_no) {
-                      let request = db.transaction("sales", "readwrite").objectStore("sales").delete(cursor.key);
-                      request.onsuccess = function(event) {
-                          displayOrderList();
-                      }
+                      cursor.delete();
+                      deleted = true;
                   }
   
                   cursor.continue();
+              } else if (deleted) {
+                  displayOrderList();
               }
           }
       }
@@ -11198,6 +11221,9 @@
       $(document).on("click", "#refresh_order", function (e) {
         $(this).css("color", "#495057");
         $("#stop_refresh_for_search").html("yes");
+        if(checkInternetConnection()){
+          new_notification_interval();
+        }
         set_new_orders_to_view_for_interval();
       });
 
@@ -14774,6 +14800,7 @@
             }
         });
     } 
+    let waiterOrderSyncInProgress = false;
     function new_notification_interval() {
       $.ajax({
         url: base_url + "Sale/get_new_notifications_ajax",
@@ -14860,6 +14887,10 @@
         },
       });
         //waiter_order_module
+        if(waiterOrderSyncInProgress){
+            return;
+        }
+        waiterOrderSyncInProgress = true;
         push_online();
         let sale_no_all = '';
         let sale_no_all_for_invoice = '';
@@ -14955,6 +14986,9 @@
             },
             error: function () {
   
+            },
+            complete: function () {
+                waiterOrderSyncInProgress = false;
             },
         });
     }
