@@ -1692,8 +1692,20 @@
           };
           return tx;
       }
-      function update_online_push(sale_id) {
-          let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
+      function update_online_push(sale_id, callback) {
+          let tx = db.transaction(['recent_sales'], "readwrite");
+          let objectStore = tx.objectStore("recent_sales");
+          let updatedOnlinePush = false;
+          tx.oncomplete = function() {
+              if (typeof callback === "function") {
+                  callback(updatedOnlinePush);
+              }
+          };
+          tx.onerror = function() {
+              if (typeof callback === "function") {
+                  callback(false);
+              }
+          };
   
           objectStore.openCursor().onsuccess = function(event) {
               let cursor = event.target.result;
@@ -1702,9 +1714,10 @@
                   if(cursor.value.sales_id == sale_id) {
                       let updateData = cursor.value;
                       updateData.online_push = 1;
+                      updatedOnlinePush = true;
                       let request = cursor.update(updateData);
                       request.onsuccess = function() {
-  
+
                       }
                   }
   
@@ -2019,79 +2032,96 @@
           });
       }
   
-      function push_online(){
-          let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
-          objectStore.openCursor().onsuccess = function(event) {
+      let pushOnlineInProgress = false;
+      let pushOnlineRetryBlockedUntil = 0;
+
+      function getNextOfflineRecentSale(callback) {
+          let objectStore = db.transaction(['recent_sales'], "readonly").objectStore("recent_sales");
+          let request = objectStore.openCursor();
+          request.onsuccess = function(event) {
               let cursor = event.target.result;
-              // let i = 1;
-  
               if (cursor) {
-                  let sales_id = cursor.value.sales_id;
-                  let online_push = cursor.value.online_push;
-                  let is_offline_system = Number(cursor.value.is_offline_system);
-                  let orders = cursor.value.order;
-                  let rowData = JSON.parse(cursor.value.order);
-                  let sale_no = rowData.sale_no;
-                  if(online_push===0){
-                      $.ajax({
-                          url:base_url+"Sale/push_online",
-                          method:"post",
-                          timeout: 15000,
-                          data:{
-                              orders : orders,
-                              sales_id : sales_id,
-                              csrf_name_: csrf_value_
-                          },
-                          success:function(response) {
-                              if(!is_offline_system){
-                                  notify_online(sale_no);
-                              }
-                              update_online_push(response);
-                          },
-                          error:function(){
-  
-                          }
-                      });
+                  if (Number(cursor.value.online_push) === 0) {
+                      callback(cursor.value);
+                      return;
                   }
                   cursor.continue();
+              } else {
+                  callback(null);
               }
+          };
+          request.onerror = function() {
+              callback(null);
           };
       }
-      function push_online_sync(){
-          let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
-          objectStore.openCursor().onsuccess = function(event) {
-              let cursor = event.target.result;
-              // let i = 1;
-  
-              if (cursor) {
-                  let sales_id = cursor.value.sales_id;
-                  let online_push = cursor.value.online_push;
-                  let is_offline_system = Number(cursor.value.is_offline_system);
-                  let orders = cursor.value.order;
-                  let rowData = JSON.parse(cursor.value.order);
-                  let sale_no = rowData.sale_no;
-                  if(online_push===0){
-                      $.ajax({
-                          url:base_url+"Sale/push_online",
-                          method:"post",
-                          timeout: 15000,
-                          data:{
-                              orders : orders,
-                              sales_id : sales_id,
-                              csrf_name_: csrf_value_
-                          },
-                          success:function(response) {
-                              notify_online(sale_no);
-                              update_online_push(response);
-                          },
-                          error:function(){
-  
-                          }
-                      });
-                  }
-                  cursor.continue();
+
+      function push_next_offline_sale(always_notify) {
+          if (pushOnlineInProgress) {
+              return;
+          }
+
+          if (!always_notify && pushOnlineRetryBlockedUntil > Date.now()) {
+              return;
+          }
+
+          pushOnlineInProgress = true;
+          getNextOfflineRecentSale(function(sale_row) {
+              if (!sale_row) {
+                  pushOnlineInProgress = false;
+                  return;
               }
-          };
+
+              let rowData = {};
+              try {
+                  rowData = JSON.parse(sale_row.order || "{}");
+              } catch (e) {
+                  rowData = {};
+              }
+
+              let sale_no = rowData.sale_no || "";
+              let is_offline_system = Number(sale_row.is_offline_system);
+              $.ajax({
+                  url:base_url+"Sale/push_online",
+                  method:"post",
+                  timeout: 15000,
+                  data:{
+                      orders : sale_row.order,
+                      sales_id : sale_row.sales_id,
+                      csrf_name_: csrf_value_
+                  },
+                  success:function(response) {
+                      if(always_notify || !is_offline_system){
+                          notify_online(sale_no);
+                      }
+                      pushOnlineRetryBlockedUntil = 0;
+                      update_online_push(response, function(updatedOnlinePush) {
+                          if(!updatedOnlinePush){
+                              pushOnlineRetryBlockedUntil = Date.now() + 30000;
+                              pushOnlineInProgress = false;
+                              return;
+                          }
+                          pushOnlineInProgress = false;
+                          setTimeout(function() {
+                              push_next_offline_sale(always_notify);
+                          }, 750);
+                      });
+                  },
+                  error:function(){
+                      pushOnlineRetryBlockedUntil = Date.now() + 30000;
+                      pushOnlineInProgress = false;
+                      if(always_notify){
+                          toastr['error']("Unable to sync offline orders right now. Please retry.", '');
+                      }
+                  }
+              });
+          });
+      }
+
+      function push_online(){
+          push_next_offline_sale(false);
+      }
+      function push_online_sync(){
+          push_next_offline_sale(true);
       }
       function remove_more_20(){
           let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
