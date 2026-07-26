@@ -549,6 +549,7 @@ class Sale extends Cl_Controller {
         $company_id = $this->session->userdata('company_id');
 
         $outlet_id = $this->session->userdata('outlet_id');
+        $this->Common_model->cleanupStaleRunningOrderTables();
 
         $data = array();
         $data['customers'] = $this->Common_model->getAllByCompanyIdForDropdown($company_id, 'tbl_customers');
@@ -1893,6 +1894,7 @@ class Sale extends Cl_Controller {
         $order_info['persons'] = $persons;
         $order_info['table_content'] = $table_info;
         $order_info['outlet_id'] = $this->session->userdata('outlet_id');
+        $order_info['company_id'] = $this->session->userdata('company_id');
 
         if(isset($sale_d) && $sale_d){
             $order_info['persons'] = ($sale_d->persons + $persons);

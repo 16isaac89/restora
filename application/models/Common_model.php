@@ -1647,9 +1647,47 @@ class Common_model extends CI_Model {
         }
         return $result;
     }
+    public function cleanupStaleRunningOrderTables() {
+        $outlet_id = $this->session->userdata('outlet_id');
+        if(!$outlet_id){
+            return;
+        }
+
+        $this->db->query(
+            "DELETE rot FROM tbl_running_order_tables rot
+             LEFT JOIN tbl_kitchen_sales ks
+                ON ks.sale_no = rot.sale_no
+                AND ks.outlet_id = rot.outlet_id
+                AND ks.del_status = 'Live'
+             LEFT JOIN tbl_sales s
+                ON s.sale_no = rot.sale_no
+                AND s.outlet_id = rot.outlet_id
+                AND s.del_status = 'Live'
+             WHERE rot.del_status = 'Live'
+                AND rot.outlet_id = ?
+                AND (ks.id IS NULL OR s.id IS NOT NULL)",
+            array($outlet_id)
+        );
+    }
+
     public function getOrderedTable() {
         $outlet_id = $this->session->userdata('outlet_id');
-        $result = $this->db->query("SELECT * FROM `tbl_running_order_tables` WHERE del_status='Live' AND outlet_id='$outlet_id'")->result();
+        $this->cleanupStaleRunningOrderTables();
+        $result = $this->db->query(
+            "SELECT rot.* FROM tbl_running_order_tables rot
+             INNER JOIN tbl_kitchen_sales ks
+                ON ks.sale_no = rot.sale_no
+                AND ks.outlet_id = rot.outlet_id
+                AND ks.del_status = 'Live'
+             LEFT JOIN tbl_sales s
+                ON s.sale_no = rot.sale_no
+                AND s.outlet_id = rot.outlet_id
+                AND s.del_status = 'Live'
+             WHERE rot.del_status = 'Live'
+                AND rot.outlet_id = ?
+                AND s.id IS NULL",
+            array($outlet_id)
+        )->result();
         return $result;
     }
     /**
@@ -1801,8 +1839,8 @@ class Common_model extends CI_Model {
                         $this->db->delete("tbl_kitchen_sales_details", array("sales_id" => $selected->id));
                         $this->db->delete("tbl_kitchen_sales_details_modifiers", array("sales_id" => $selected->id));
                         $this->db->delete("tbl_kitchen_sales", array("id" => $selected->id));
-                        $this->db->delete("tbl_running_order_tables", array("sale_no" => $value, "outlet_id" => $outlet_id));
                     } 
+                    $this->db->delete("tbl_running_order_tables", array("sale_no" => $value, "outlet_id" => $outlet_id));
                 } 
             }
         }

@@ -965,7 +965,21 @@
           };
       }
 
+      let orderListRenderInProgress = false;
+      let orderListRenderQueued = false;
       function displayOrderList(){
+          if(orderListRenderInProgress){
+              orderListRenderQueued = true;
+              return;
+          }
+          orderListRenderInProgress = true;
+          function finishOrderListRender(){
+              orderListRenderInProgress = false;
+              if(orderListRenderQueued){
+                  orderListRenderQueued = false;
+                  setTimeout(displayOrderList, 0);
+              }
+          }
           let selected_sale_no = $(".holder .order_details .single_order[data-selected=selected]").attr("data-sale_no") || "";
           let order_list_left = '';
           let running_sale_nos = [];
@@ -973,7 +987,8 @@
           let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
           let sales_id = '';
           let i = 1;
-          objectStore.openCursor(null, 'prev').onsuccess = function(event) {
+          let cursorRequest = objectStore.openCursor(null, 'prev');
+          cursorRequest.onsuccess = function(event) {
               let cursor = event.target.result;
               if (cursor) {
                   let orderData = cursor.value;
@@ -1059,7 +1074,11 @@
                       });
                   }
                   apply_running_order_kot_status(running_sale_nos);
+                  finishOrderListRender();
               }
+          };
+          cursorRequest.onerror = function() {
+              finishOrderListRender();
           };
       }
       function apply_running_order_kot_status(saleNos){

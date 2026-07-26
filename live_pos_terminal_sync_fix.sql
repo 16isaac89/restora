@@ -80,3 +80,18 @@ SET @sql := IF(
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+UPDATE tbl_running_order_tables rot
+JOIN tbl_kitchen_sales ks ON ks.sale_no = rot.sale_no AND ks.outlet_id = rot.outlet_id AND ks.del_status = 'Live'
+SET rot.company_id = ks.company_id
+WHERE rot.del_status = 'Live'
+  AND rot.company_id = 0;
+
+SET @sql := IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA=@db_name AND TABLE_NAME='tbl_running_order_tables' AND INDEX_NAME='idx_running_order_tables_sale_scope') = 0,
+  'ALTER TABLE tbl_running_order_tables ADD INDEX idx_running_order_tables_sale_scope (sale_no, outlet_id, company_id, del_status)',
+  'SELECT ''idx_running_order_tables_sale_scope already exists'''
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
