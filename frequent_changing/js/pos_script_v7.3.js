@@ -1081,10 +1081,18 @@
               finishOrderListRender();
           };
       }
+      let kotTrackingSummaryInProgress = false;
+      let kotTrackingSummaryKey = "";
       function apply_running_order_kot_status(saleNos){
           if(!Array.isArray(saleNos) || !saleNos.length){
               return;
           }
+          let summaryKey = saleNos.join(",");
+          if(kotTrackingSummaryInProgress || summaryKey === kotTrackingSummaryKey){
+              return;
+          }
+          kotTrackingSummaryInProgress = true;
+          kotTrackingSummaryKey = summaryKey;
           $.ajax({
               url: base_url + "Authentication/getKotTrackingSummary",
               method: "post",
@@ -1112,10 +1120,17 @@
                           $(this).addClass("kot_status_pending_order");
                       }
                   });
+              },
+              error: function(){
+                  kotTrackingSummaryKey = "";
+              },
+              complete: function(){
+                  kotTrackingSummaryInProgress = false;
               }
           });
       }
       function refresh_kot_tracking_views(saleNo){
+          kotTrackingSummaryKey = "";
           displayOrderList();
           if(saleNo && $("#kot_list_modal").hasClass("active")){
               render_kot_item_selector(saleNo);
@@ -2113,7 +2128,7 @@
   
       setInterval(function () {
           checkInternetConnectionNew();
-      }, 2000);
+      }, 15000);
   
       $(document).on("click", "#sync_online", function (e) {
           push_online_sync();
@@ -15021,7 +15036,7 @@
               new_notification_interval();
           }
         refresh_orders_left();
-      }, 7000);
+      }, 15000);
     }
       //waiter_order_module
       setTimeout(function () {
