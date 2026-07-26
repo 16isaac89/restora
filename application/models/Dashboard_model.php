@@ -38,14 +38,14 @@ class Dashboard_model extends CI_Model {
      */
     public function getAllFoodMenus($outlet_id){
         $getFM = getFMIdsOutlet($outlet_id);
-       /* echo $getFM;exit;*/
-        $result = $this->db->query("SELECT fm.*,fmc.category_name, COUNT(sd.food_menu_id) as item_sold 
-FROM tbl_food_menus fm  INNER JOIN (select * from tbl_food_menu_categories where del_status='Live') fmc ON fmc.id = fm.category_id LEFT JOIN (select * from tbl_sales_details where del_status='Live') sd ON sd.food_menu_id = fm.id WHERE FIND_IN_SET(fm.id, '$getFM') AND fm.del_status='Live' GROUP BY fm.id order BY name ASC")->result();
-        if($result != false){
-            return sizeof($result);
-        }else{
-            return '0';
+        if(!$getFM){
+            return 0;
         }
+        $row = $this->db->query("SELECT COUNT(*) as total_food_menus
+            FROM tbl_food_menus fm
+            WHERE FIND_IN_SET(fm.id, ?)
+            AND fm.del_status='Live'", array($getFM))->row();
+        return isset($row->total_food_menus) ? (int)$row->total_food_menus : 0;
     }
      /**
      * get Purchase Amount
