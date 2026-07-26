@@ -549,7 +549,6 @@ class Sale extends Cl_Controller {
         $company_id = $this->session->userdata('company_id');
 
         $outlet_id = $this->session->userdata('outlet_id');
-        $this->Common_model->cleanupStaleRunningOrderTables();
 
         $data = array();
         $data['customers'] = $this->Common_model->getAllByCompanyIdForDropdown($company_id, 'tbl_customers');

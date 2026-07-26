@@ -388,7 +388,7 @@
                 <div class="box-header">
                     <i data-feather="alert-triangle"></i>
                     <h3 class="box-title"><?php echo lang('ingredients_alert'); ?>/<?php echo lang('low_stock'); ?>
-                        <span class="ir_color_red">(<?= getAlertCount() ?>)</span>
+                        <span class="ir_color_red">(<?= escape_output(isset($low_stock_alert_count) ? $low_stock_alert_count : 0) ?>)</span>
                     </h3>
                 </div>
                 <div class="box-body ir_height280">
@@ -412,8 +412,6 @@
                                 $conversion_rate = (int)$value->conversion_rate?$value->conversion_rate:1;
                                 $totalStock = ($value->total_purchase*$value->conversion_rate)  - $value->total_consumption - $value->total_modifiers_consumption - $value->total_waste + $value->total_consumption_plus - $value->total_consumption_minus + ($value->total_transfer_plus*$value->conversion_rate) - ($value->total_transfer_minus*$value->conversion_rate)  +  ($value->total_transfer_plus_2*$value->conversion_rate) -  ($value->total_transfer_minus_2*$value->conversion_rate)+ ($value->total_production*$value->conversion_rate);
                                 if ($totalStock <= $value->alert_quantity):
-                                    $last_purchase_price = getLastPurchaseAmount($value->id);
-                                    $totalTK = $totalStock * $last_purchase_price;
                                     if($value->conversion_rate==0 || $value->conversion_rate==''){
                                         $total_sale_unit = isset($value->conversion_rate) && (int)$value->conversion_rate?(int)($totalStock/1):'0';
                                     }else{

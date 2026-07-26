@@ -84,7 +84,7 @@ class Dashboard extends Cl_Controller {
 
         $data['outlet_id'] =  $outlet_id;
         $data['food_menu_count'] =  $this->Dashboard_model->getAllFoodMenus($outlet_id);
-        $data['ingredient_count'] = sizeof($this->Dashboard_model->getInventory($outlet_id));
+        $data['ingredient_count'] = $this->Dashboard_model->countData('tbl_ingredients')->data_count;
         $data['customer_count'] = $this->Dashboard_model->countData('tbl_customers');
         $data['employee_count'] = $this->Dashboard_model->countData('tbl_users');
 
@@ -92,6 +92,7 @@ class Dashboard extends Cl_Controller {
         $data['end_date_dashboard'] = $last_day_this_month;
 
         $data['low_stock_ingredients'] = $this->Inventory_model->getInventoryAlertList($outlet_id);
+        $data['low_stock_alert_count'] = $this->countLowStockIngredients($data['low_stock_ingredients']);
         $data['top_ten_food_menu'] = $this->Dashboard_model->top_ten_food_menu($first_day_this_month, $last_day_this_month,$outlet_id);
         $data['top_ten_customer'] = $this->Dashboard_model->top_ten_customer($first_day_this_month, $last_day_this_month,$outlet_id);
         $data['customer_receivable'] = $this->Dashboard_model->customer_receivable($outlet_id);
@@ -114,6 +115,37 @@ class Dashboard extends Cl_Controller {
 
         $data['main_content'] = $this->load->view('dashboard/dashboard', $data, TRUE);
         $this->load->view('userHome', $data);
+    }
+
+    private function countLowStockIngredients($ingredients) {
+        $alert_count = 0;
+        if(!$ingredients){
+            return $alert_count;
+        }
+
+        foreach ($ingredients as $value) {
+            if(!$value->id){
+                continue;
+            }
+            $conversion_rate = (int)$value->conversion_rate ? $value->conversion_rate : 1;
+            $total_stock = ($value->total_purchase * $value->conversion_rate)
+                - $value->total_consumption
+                - $value->total_modifiers_consumption
+                - $value->total_waste
+                + $value->total_consumption_plus
+                - $value->total_consumption_minus
+                + ($value->total_transfer_plus * $value->conversion_rate)
+                - ($value->total_transfer_minus * $value->conversion_rate)
+                + ($value->total_transfer_plus_2 * $value->conversion_rate)
+                - ($value->total_transfer_minus_2 * $value->conversion_rate)
+                + ($value->total_production * $value->conversion_rate);
+
+            if ($total_stock <= $value->alert_quantity) {
+                $alert_count++;
+            }
+        }
+
+        return $alert_count;
     }
      /**
      * bar panel
