@@ -1779,9 +1779,6 @@ class Common_model extends CI_Model {
                     ->where('outlet_id', $outlet_id)
                     ->where('del_status', 'Live')
                 ;
-                if($designation=="Cashier" && $counter_id){
-                    $this->db->where('counter_id', $counter_id);
-                }
                 $row = $this->db->get()
                     ->row();
                 if(isset($row) && $row){
@@ -1797,9 +1794,6 @@ class Common_model extends CI_Model {
                         ->where('outlet_id', $outlet_id)
                         ->where('del_status', 'Live')
                     ;
-                    if($designation=="Cashier" && $counter_id){
-                        $this->db->where('counter_id', $counter_id);
-                    }
                     $selected = $this->db->get()
                         ->row();
                     $pre_or_post_payment = $this->session->userdata('pre_or_post_payment');

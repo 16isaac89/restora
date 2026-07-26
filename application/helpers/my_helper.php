@@ -2145,6 +2145,13 @@
         if($CI->db->field_exists('counter_id', 'tbl_running_orders') && $CI->session->userdata('counter_id')){
             $CI->db->where('counter_id', $CI->session->userdata('counter_id'));
         }
+        if($company_id && $outlet_id){
+            $CI->db->where(
+                "sale_no NOT IN (SELECT DISTINCT sale_no FROM tbl_sales WHERE del_status='Live' AND company_id=".$CI->db->escape($company_id)." AND outlet_id=".$CI->db->escape($outlet_id).")",
+                null,
+                false
+            );
+        }
         $running_orders = $CI->db->get()->result();
         if(!empty($running_orders)){
             return $running_orders;

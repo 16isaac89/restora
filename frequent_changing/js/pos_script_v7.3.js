@@ -886,10 +886,67 @@
         })
     }
       /**************Get Sales Information from indexedDB End *******************/
+      function localOrderSaleNo(orderData) {
+          if (!orderData) {
+              return "";
+          }
+          if (orderData.sale_no) {
+              return orderData.sale_no;
+          }
+          try {
+              let rowData = JSON.parse(orderData.order || "{}");
+              return rowData.sale_no || "";
+          } catch (e) {
+              return "";
+          }
+      }
+
+      function isLocalOrderInvoiced(orderData, rowData) {
+          return Number(orderData && orderData.is_invoice) === 2 || Number(rowData && rowData.is_invoice) === 2;
+      }
+
+      function saveLocalOrderBySaleNo(storeName, orderInfo, saleNo, onSuccess, onError) {
+          let objectStore = db.transaction([storeName], "readwrite").objectStore(storeName);
+          objectStore.openCursor().onsuccess = function(event) {
+              let cursor = event.target.result;
+              if (cursor) {
+                  if (localOrderSaleNo(cursor.value) == saleNo) {
+                      let updateData = $.extend({}, cursor.value, orderInfo);
+                      let updateRequest = cursor.update(updateData);
+                      updateRequest.onsuccess = function(event) {
+                          if (typeof onSuccess === "function") {
+                              onSuccess(event);
+                          }
+                      };
+                      updateRequest.onerror = function(event) {
+                          if (typeof onError === "function") {
+                              onError(event);
+                          }
+                      };
+                      return;
+                  }
+                  cursor.continue();
+              } else {
+                  let request = db.transaction(storeName, "readwrite").objectStore(storeName).add(orderInfo);
+                  request.onsuccess = function(event) {
+                      if (typeof onSuccess === "function") {
+                          onSuccess(event);
+                      }
+                  };
+                  request.onerror = function(event) {
+                      if (typeof onError === "function") {
+                          onError(event);
+                      }
+                  };
+              }
+          };
+      }
+
       function displayOrderList(){
           let selected_sale_no = $(".holder .order_details .single_order[data-selected=selected]").attr("data-sale_no") || "";
           let order_list_left = '';
           let running_sale_nos = [];
+          let rendered_sale_nos = {};
           let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
           let sales_id = '';
           let i = 1;
@@ -901,6 +958,12 @@
                   let table_id = orderData.table_id;
                   let rowData = JSON.parse(orderInfo);
                   let sales_id = cursor.value.sales_id;
+                  let sale_no_for_row = rowData.sale_no || orderData.sale_no || "";
+                  if (!sale_no_for_row || isLocalOrderInvoiced(orderData, rowData) || rendered_sale_nos[sale_no_for_row]) {
+                      cursor.delete();
+                      cursor.continue();
+                      return;
+                  }
   
                   let outlet_id_indexdb = Number($("#outlet_id_indexdb").val());
                   let outlet_id = Number(orderData.outlet_id);
@@ -908,6 +971,7 @@
                   let user_id_login = Number($("#user_id").val());
   
                   if(user_id_login==user_id){
+                    rendered_sale_nos[sale_no_for_row] = true;
                     running_sale_nos.push(rowData.sale_no);
                     let sale_no_plan = get_plan_string(rowData.sale_no);
                       let waiter_name = rowData.waiter_name != "" && rowData.waiter_name!=undefined  && rowData.waiter_name!=null && rowData.waiter_name!="undefined" ? rowData.waiter_name : "";
@@ -13122,9 +13186,7 @@
                     is_invoice: 1,
                 };
   
-                let request = db.transaction("future_sales", "readwrite").objectStore("future_sales").add(order_info);
-  
-                request.onsuccess = function(event) {
+                saveLocalOrderBySaleNo("future_sales", order_info, sale_no_new, function(event) {
                     $("#open_invoice_date_hidden").val(getCurrentDate());
                     if (waiter_app_status == "Yes") {
                         $("#show_running_order").click();
@@ -13144,11 +13206,9 @@
                     setTimeout(function(){
                         createAnimation(sale_no_new);
                     }, 1000);
-                };
-  
-                request.onerror = function(event) {
+                }, function(event) {
                     alert("Unable to add data\r\nOrder is aready exist in your database!");
-                }
+                });
             } else {
   
                 let objectStore = db.transaction(['future_sales'], "readwrite").objectStore("future_sales");
@@ -13156,7 +13216,7 @@
                 objectStore.openCursor().onsuccess = function(event) {
                     let cursor = event.target.result;
                     if (cursor) {
-                        if(cursor.value.sales_id == sale_id) {
+                        if(cursor.value.sales_id == update_sale_id) {
                             let updateData = cursor.value;
                             updateData.order = order_object; 
                             updateData.online_push = 0;
@@ -13197,8 +13257,7 @@
                     is_running: 1,
                     is_invoice: 1,
                 };
-                let request = db.transaction("sales", "readwrite").objectStore("sales").add(order_info);
-                request.onsuccess = function(event) {
+                saveLocalOrderBySaleNo("sales", order_info, sale_no_new, function(event) {
                     $("#open_invoice_date_hidden").val(getCurrentDate());
                     if (waiter_app_status == "Yes") {
                         $("#show_running_order").click();
@@ -13239,11 +13298,9 @@
                         createAnimation(sale_no_new);
                     }, 1100);
   
-                };
-  
-                request.onerror = function(event) {
+                }, function(event) {
                     alert("Unable to add data\r\nOrder is already exist in your database!");
-                }
+                });
             } else {
                 let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
                 objectStore.openCursor().onsuccess = function(event) {
@@ -14878,24 +14935,22 @@
                 }
                 let get_waiter_orders_for_delete_sender =   (response.get_waiter_orders_for_delete_sender);
 
-                if(pre_or_post_payment!=2){
-                    if(get_waiter_orders_for_delete_sender){
+                if(get_waiter_orders_for_delete_sender){
                     
-                        let get_waiter_orders_for_delete_sender_arr =   (response.get_waiter_orders_for_delete_sender).split(",");
-                        for (let key1 in get_waiter_orders_for_delete_sender_arr) {
-                            let sale_no_tmp = get_waiter_orders_for_delete_sender_arr[key1]; 
-                            if(sale_no_tmp){
-                                deleteOrderForWaiter(sale_no_tmp);
-                            }
-                            
+                    let get_waiter_orders_for_delete_sender_arr =   (response.get_waiter_orders_for_delete_sender).split(",");
+                    for (let key1 in get_waiter_orders_for_delete_sender_arr) {
+                        let sale_no_tmp = get_waiter_orders_for_delete_sender_arr[key1]; 
+                        if(sale_no_tmp){
+                            deleteOrderForWaiter(sale_no_tmp);
                         }
+                        
                     }
+                }
                
-                    let already_invoiced_orders = (response.already_invoiced_orders);
-                    for (let key1 in already_invoiced_orders) {
-                        order = already_invoiced_orders[key1];
-                        deleteOrderForWaiter(order.sale_no);
-                    }
+                let already_invoiced_orders = (response.already_invoiced_orders);
+                for (let key1 in already_invoiced_orders) {
+                    order = already_invoiced_orders[key1];
+                    deleteOrderForWaiter(order.sale_no);
                 }
             },
             error: function () {

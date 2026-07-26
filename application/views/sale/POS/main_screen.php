@@ -550,7 +550,7 @@ foreach ($notifications as $single_notification){
     <!-- Sweet alert -->
     <script src="<?php echo base_url(); ?>assets/POS/sweetalert2/dist/sweetalert.min.js"></script>
     <link rel="stylesheet" href="<?php echo base_url(); ?>assets/POS/sweetalert2/dist/sweetalert.min.css">
-    <link rel="stylesheet" href="<?php echo base_url(); ?>assets/POS/css/custom_pos.css">
+    <link rel="stylesheet" href="<?php echo base_url(); ?>assets/POS/css/custom_pos.css?v=1.0.1">
     <!--notification for waiter panel-->
     <link rel="stylesheet" href="<?php echo base_url(); ?>assets/plugins/notify/jquery.notifyBar.css">
     <script type="text/javascript"
@@ -4763,7 +4763,7 @@ endif;
     /*This variable could not be escaped because this is building object*/
     window.kitchens = [<?php echo ($kitchens_objects);?>];
     </script>
-    <script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/pos_script_v7.3.js?v=7.6.14"></script>
+    <script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/pos_script_v7.3.js?v=7.6.15"></script>
     <script src="<?php echo base_url(); ?>assets/POS/js/media.js"></script>
     <script type="text/javascript" src="<?php echo base_url(); ?>assets/plugins/notify/jquery.notifyBar.js"></script>
     <script type="text/javascript">
