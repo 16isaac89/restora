@@ -90,8 +90,10 @@ class Sale extends Cl_Controller {
 
 
         $outlet_id = $this->session->userdata('outlet_id');
+        $company_id = $this->session->userdata('company_id');
         $data = array();
         $data['edit_return_id'] = $id;
+        $data['cashiers'] = $this->Sale_model->getCashiersForThisCompanyForOutlet($company_id, 'tbl_users');
         $data['main_content'] = $this->load->view('sale/sales', $data, TRUE);
         $this->load->view('userHome', $data);
     }
@@ -256,6 +258,7 @@ class Sale extends Cl_Controller {
         $filters = array(
             'from_datetime' => $this->input->get('from_datetime', TRUE),
             'to_datetime' => $this->input->get('to_datetime', TRUE),
+            'user_id' => $this->input->get('user_id', TRUE),
             'search_value' => $this->input->get('search_value', TRUE)
         );
         $sales = $this->Sale_model->exportDailySaleRows($filters);

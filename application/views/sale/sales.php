@@ -121,19 +121,30 @@ if ($this->session->flashdata('exception_1')) {
     <div class="box-wrapper">
         <div class="table-box">
             <div class="row mb-3">
-                <div class="col-sm-12 col-md-5">
+                <div class="col-sm-12 col-md-3">
                     <label for="from_datetime"><?php echo lang('from'); ?> <?php echo lang('date'); ?> / <?php echo lang('time'); ?></label>
                     <div class="sale-date-time-picker-wrapper">
                         <input type="text" id="from_datetime" class="form-control salesDateTimePicker" autocomplete="off" placeholder="<?php echo lang('start_date'); ?>">
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-5">
+                <div class="col-sm-12 col-md-3">
                     <label for="to_datetime"><?php echo lang('to'); ?> <?php echo lang('date'); ?> / <?php echo lang('time'); ?></label>
                     <div class="sale-date-time-picker-wrapper">
                         <input type="text" id="to_datetime" class="form-control salesDateTimePicker" autocomplete="off" placeholder="<?php echo lang('end_date'); ?>">
                     </div>
                 </div>
-                <div class="col-sm-12 col-md-2 d-flex align-items-end">
+                <div class="col-sm-12 col-md-3">
+                    <label for="added_by_user_id"><?php echo lang('added_by'); ?></label>
+                    <select id="added_by_user_id" class="form-control select2">
+                        <option value=""><?php echo lang('select'); ?> <?php echo lang('Cashier'); ?></option>
+                        <?php if(isset($cashiers) && $cashiers): ?>
+                            <?php foreach($cashiers as $cashier): ?>
+                                <option value="<?php echo escape_output($cashier->id); ?>"><?php echo escape_output($cashier->full_name); ?></option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                </div>
+                <div class="col-sm-12 col-md-3 d-flex align-items-end">
                     <button type="button" id="sale_search_btn" class="btn bg-blue-btn me-2">Search</button>
                     <button type="button" id="clear_datetime_btn" class="btn bg-red-btn"><?php echo lang('clear'); ?></button>
                 </div>
@@ -304,4 +315,4 @@ if ($this->session->flashdata('exception_1')) {
 <script type="text/javascript" src="<?php echo base_url(); ?>assets/POS/js/jquery.cookie.js"></script>
 <script src="<?php echo base_url(); ?>assets/bower_components/datetimepicker/js/moment.min.js"></script>
 <script src="<?php echo base_url(); ?>assets/bower_components/datetimepicker/js/bootstrap-datetimepicker.min.js"></script>
-<script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/sale.js"></script>
+<script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/sale.js?v=1.0.1"></script>

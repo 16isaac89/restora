@@ -5,6 +5,7 @@ $(document).ready(function(){
     return {
       from_datetime: $("#from_datetime").val().trim(),
       to_datetime: $("#to_datetime").val().trim(),
+      user_id: $("#added_by_user_id").val() || "",
       search_value: $("#datatable_filter input[type='search']").val() || ""
     };
   }
@@ -126,7 +127,8 @@ $(document).ready(function(){
                   search_value: filters.search_value,
                   draw: d.draw,
                   from_datetime: filters.from_datetime,
-                  to_datetime: filters.to_datetime
+                  to_datetime: filters.to_datetime,
+                  user_id: filters.user_id
               };
           }
       },
@@ -189,6 +191,7 @@ $(document).ready(function(){
   $(document).on("click", "#clear_datetime_btn", function () {
       $("#from_datetime").val("");
       $("#to_datetime").val("");
+      $("#added_by_user_id").val("").trigger("change");
       if ($("#from_datetime").data("DateTimePicker")) {
         $("#from_datetime").data("DateTimePicker").clear();
       }
@@ -202,6 +205,10 @@ $(document).ready(function(){
       if (e.which === 13) {
         salesTable.ajax.reload(null, true);
       }
+  });
+
+  $(document).on("change", "#added_by_user_id", function () {
+      salesTable.ajax.reload(null, true);
   });
 
   $(document).on("click", 'a[href*="Sale/exportDailySales"]', function (e) {

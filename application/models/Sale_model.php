@@ -472,6 +472,43 @@ class Sale_model extends CI_Model {
       }
 
   }
+    public function getCashiersForThisCompanyForOutlet($company_id,$table){
+      $language_manifesto = $this->session->userdata('language_manifesto');
+      if(str_rot13($language_manifesto)=="eriutoeri"){
+        $value = $this->session->userdata("outlet_id");
+        if($value==''){
+          $value = 0;
+        }
+        $this->db->select('*');
+        $this->db->from('tbl_users');
+        $this->db->where("FIND_IN_SET($value, outlets) >", 0);
+        $this->db->where("designation", 'Cashier');
+        $this->db->where("company_id", $company_id);
+        $this->db->where("del_status", 'Live');
+        $this->db->order_by('full_name', 'ASC');
+        $query = $this->db->get();
+        return $query->result();
+      }else{
+          $outlet_id = $this->session->userdata('outlet_id');
+          if($outlet_id==''){
+            $outlet_id = 0;
+          }
+          $this->db->select("*");
+          $this->db->from($table);
+          $this->db->where("company_id", $company_id);
+          $this->db->where("outlet_id", $outlet_id);
+          $this->db->where("designation", 'Cashier');
+          $this->db->where("del_status", 'Live');
+          $this->db->order_by('full_name', 'ASC');
+          $result = $this->db->get();
+          if($result != false){
+              return $result->result();
+          }else{
+              return false;
+          }
+      }
+
+  }
   public function getWaitersForThisCompanyForOutlet1($company_id,$table){
         $this->db->select("*");
         $this->db->from($table);
@@ -1934,6 +1971,11 @@ class Sale_model extends CI_Model {
         $this->db->where('tbl_sales.outlet_id', $outlet_id);
         $this->db->where('tbl_sales.order_status', '3');
         $this->db->where('tbl_sales.del_status', 'Live');
+
+        $user_id = (int)$this->getSaleFilterValue($filters, 'user_id');
+        if ($user_id > 0) {
+            $this->db->where('tbl_sales.user_id', $user_id);
+        }
 
         $from_datetime = $this->getSaleFilterValue($filters, 'from_datetime');
         $to_datetime = $this->getSaleFilterValue($filters, 'to_datetime');
