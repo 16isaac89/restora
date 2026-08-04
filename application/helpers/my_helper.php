@@ -1536,6 +1536,13 @@
      * @param no
      */
     function getCompanyInfo($company_id = '') {
+        // getAmtP() alone is called 75+ times per POS screen render (once per product/
+        // modifier line), and previously re-queried tbl_companies from scratch every
+        // single time -- thousands of redundant identical queries per page load. This
+        // static cache is scoped to the current request only (PHP-FPM resets statics
+        // between requests), so it can't return stale data across page loads.
+        static $cache = array();
+
         $CI = & get_instance();
         if(!$company_id){
             $company_id = $CI->session->userdata('company_id');
@@ -1548,10 +1555,15 @@
             $company_id = $CI->session->userdata('online_selected_company');  
         }
 
+        if(array_key_exists($company_id, $cache)){
+            return $cache[$company_id];
+        }
+
         $CI->db->select("*");
         $CI->db->from("tbl_companies");
         $CI->db->where("id", $company_id);
-        return $CI->db->get()->row();
+        $cache[$company_id] = $CI->db->get()->row();
+        return $cache[$company_id];
     }
 
     /**
@@ -1596,14 +1608,22 @@
      * @param no
      */
     function getCompanyInfoById($company_id='') {
+        static $cache = array();
+
         $CI = & get_instance();
         if($company_id==''){
             $company_id = $CI->session->userdata('company_id');
         }
+
+        if(array_key_exists($company_id, $cache)){
+            return $cache[$company_id];
+        }
+
         $CI->db->select("*");
         $CI->db->from("tbl_companies");
         $CI->db->where("id", $company_id);
-        return $CI->db->get()->row();
+        $cache[$company_id] = $CI->db->get()->row();
+        return $cache[$company_id];
     }
     /**
      * get first outlet Info
