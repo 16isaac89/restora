@@ -111,7 +111,7 @@ class IR_api extends REST_Controller
             return;
         }
 
-        $company = $this->db->select('id,business_name,short_name,address,phone,currency,precision,default_customer,default_waiter,default_payment,print_format_invoice,split_bill,printing_invoice,receipt_printer_invoice,printing_bill,receipt_printer_bill,printing_kot,receipt_printer_kot,print_format_kot,print_kot_when_placing_order,del_status')
+        $company = $this->db->select('id,business_name,short_name,address,phone,currency,precision,default_customer,default_waiter,default_payment,print_format_invoice,split_bill,printing_invoice,receipt_printer_invoice,printing_bill,receipt_printer_bill,printing_kot,receipt_printer_kot,print_format_kot,print_kot_when_placing_order,invoice_logo,del_status')
             ->from('tbl_companies')->where('id', $company_id)->get()->row();
         $outlet = $this->db->select('id,outlet_name,outlet_code,address,phone,email,default_waiter,company_id,food_menus,food_menu_prices,delivery_price,has_kitchen,active_status,del_status')
             ->from('tbl_outlets')->where('id', $outlet_id)->where('company_id', $company_id)->get()->row();
@@ -337,25 +337,25 @@ class IR_api extends REST_Controller
             return;
         }
 
-        $idempotency_key = isset($input['idempotency_key']) ? trim((string)$input['idempotency_key']) : '';
-        if ($idempotency_key) {
-            $existing = $this->db->select('id,sale_no,total_payable')
+        // Stable local order id, used to find-and-update the same remote row across an
+        // order's lifecycle (items added, marked served, etc.) instead of creating a new
+        // kitchen order every time this endpoint is called for the same local order.
+        $local_order_uuid = isset($input['local_order_uuid']) ? trim((string)$input['local_order_uuid']) : (isset($input['idempotency_key']) ? trim((string)$input['idempotency_key']) : '');
+        $existing_sale = null;
+        if ($local_order_uuid) {
+            $existing_sale = $this->db->select('id,sale_no')
                 ->from('tbl_kitchen_sales')
-                ->where('random_code', $idempotency_key)
+                ->where('random_code', $local_order_uuid)
                 ->where('outlet_id', $outlet_id)
                 ->where('del_status', 'Live')
                 ->get()->row();
-            if ($existing) {
-                $this->response(array(
-                    'status' => true,
-                    'sale_id' => (int)$existing->id,
-                    'sale_no' => $existing->sale_no,
-                    'total_payable' => (float)$existing->total_payable,
-                    'message' => 'Order was already received (idempotent replay).'
-                ));
-                return;
-            }
         }
+
+        // "completed" here means the kitchen is done with this order -- it does NOT mean
+        // paid. This never writes to tbl_sales and never touches order_status (which is
+        // tied to invoicing on this schema); it only sets the free-text status column.
+        $requested_status = isset($input['status']) ? (string)$input['status'] : 'running';
+        $kitchen_status = $requested_status === 'completed' ? 'Completed' : 'Pending';
 
         $table_id = isset($input['table_id']) && $input['table_id'] ? (int)$input['table_id'] : 0;
         $table = null;
@@ -427,7 +427,6 @@ class IR_api extends REST_Controller
         $now = date('Y-m-d H:i:s');
         $sale_data = array(
             'customer_id' => $customer_id,
-            'sale_no' => 'PENDING',
             'total_items' => count($clean_items),
             'sub_total' => $sub_total,
             'paid_amount' => 0,
@@ -442,29 +441,46 @@ class IR_api extends REST_Controller
             'total_discount_amount' => $total_discount,
             'sub_total_discount_value' => '0',
             'sub_total_discount_type' => 'fixed',
-            'sale_date' => date('Y-m-d'),
             'date_time' => $now,
-            'order_time' => date('H:i:s'),
-            'modified' => 'No',
             'user_id' => $waiter_id,
             'waiter_id' => $waiter_id,
             'outlet_id' => $outlet_id,
             'company_id' => $company_id,
             'order_status' => 1,
             'order_type' => $order_type,
+            'status' => $kitchen_status,
             'del_status' => 'Live',
             'orders_table_text' => $table ? $table->name : '',
             'self_order_content' => json_encode($input),
-            'random_code' => $idempotency_key,
+            'random_code' => $local_order_uuid,
         );
-        if (!$this->db->insert('tbl_kitchen_sales', $sale_data)) {
-            $this->db->trans_rollback();
-            $this->response(array('status' => false, 'message' => 'Could not create the order.'), 500);
-            return;
+
+        if ($existing_sale) {
+            $sale_id = (int)$existing_sale->id;
+            $sale_no = $existing_sale->sale_no;
+            $sale_data['modified'] = 'Yes';
+            $this->db->where('id', $sale_id)->update('tbl_kitchen_sales', $sale_data);
+            $this->db->where('sale_id', $sale_id)->delete('tbl_orders_table');
+            $old_detail_ids = $this->db->select('id')->from('tbl_kitchen_sales_details')->where('sales_id', $sale_id)->get()->result();
+            if ($old_detail_ids) {
+                $old_ids = array_map(function ($row) { return $row->id; }, $old_detail_ids);
+                $this->db->where_in('sales_details_id', $old_ids)->delete('tbl_kitchen_sales_details_modifiers');
+            }
+            $this->db->where('sales_id', $sale_id)->delete('tbl_kitchen_sales_details');
+        } else {
+            $sale_data['sale_no'] = 'PENDING';
+            $sale_data['modified'] = 'No';
+            $sale_data['sale_date'] = date('Y-m-d');
+            $sale_data['order_time'] = date('H:i:s');
+            if (!$this->db->insert('tbl_kitchen_sales', $sale_data)) {
+                $this->db->trans_rollback();
+                $this->response(array('status' => false, 'message' => 'Could not create the order.'), 500);
+                return;
+            }
+            $sale_id = $this->db->insert_id();
+            $sale_no = 'APP-' . $outlet_id . '-' . $sale_id;
+            $this->db->where('id', $sale_id)->update('tbl_kitchen_sales', array('sale_no' => $sale_no));
         }
-        $sale_id = $this->db->insert_id();
-        $sale_no = 'APP-' . $outlet_id . '-' . $sale_id;
-        $this->db->where('id', $sale_id)->update('tbl_kitchen_sales', array('sale_no' => $sale_no));
 
         if ($table_id) {
             $this->db->insert('tbl_orders_table', array(
