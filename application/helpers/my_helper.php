@@ -2009,6 +2009,9 @@
             $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' AND id=1")->result();
         endif;
 
+        // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
+        // in the database but is hidden from every outlet picker/report filter.
+        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
         return $result;
     }
     function getAllOutlestByAssignAll() {
@@ -2029,11 +2032,18 @@
             $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' AND id=1")->result();
         endif;
 
+        // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
+        // in the database but is hidden from every outlet picker/report filter.
+        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
         return $result;
     }
     function getAllOutlestByAssignFront() {
         $CI = & get_instance(); 
-        return $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' ORDER BY outlet_name ASC")->result();
+        // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
+        // in the database but is hidden from every outlet picker/report filter.
+        $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' ORDER BY outlet_name ASC")->result();
+        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        return $result;
     }
     /**
      * get All Outlet By Assign User
@@ -2051,6 +2061,9 @@
         }
 
         $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' AND `company_id`='$company_id'")->result();
+        // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
+        // in the database but is hidden from every outlet picker/report filter.
+        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
         return $result;
     }
     /**
