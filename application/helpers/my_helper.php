@@ -906,17 +906,38 @@
     function getCustomerDue($customer_id) {
         $CI = & get_instance();
         $outlet_id = $CI->session->userdata('outlet_id');
-        if($outlet_id){
-            $customer_due = $CI->db->query("SELECT SUM(due_amount) as due FROM tbl_sales WHERE customer_id=$customer_id and outlet_id=$outlet_id and del_status='Live' and order_status='3'")->row();
-            $customer_payment = $CI->db->query("SELECT SUM(amount) as amount FROM tbl_customer_due_receives WHERE customer_id=$customer_id and outlet_id=$outlet_id and del_status='Live'")->row();
-        }else{
-            $customer_due = $CI->db->query("SELECT SUM(due_amount) as due FROM tbl_sales WHERE customer_id=$customer_id and del_status='Live' and order_status='3'")->row();
-            $customer_payment = $CI->db->query("SELECT SUM(amount) as amount FROM tbl_customer_due_receives WHERE customer_id=$customer_id  and del_status='Live'")->row();
-        }
-    
-        $remaining_due = $customer_due->due - $customer_payment->amount;
-        return $remaining_due;
 
+        // Called once per customer when building the customer picker on the POS
+        // screen -- with 200+ customers that is 200+ pairs of aggregate queries on
+        // every single page load, several of them scanning most of tbl_sales (the
+        // walk-in customer alone accounts for the vast majority of rows). Fetch
+        // every customer's totals once per request instead and look up in memory.
+        static $cache = null;
+        static $cache_outlet_id = null;
+        if ($cache === null || $cache_outlet_id !== $outlet_id) {
+            if ($outlet_id) {
+                $due_rows = $CI->db->query("SELECT customer_id, SUM(due_amount) as due FROM tbl_sales WHERE outlet_id=$outlet_id and del_status='Live' and order_status='3' GROUP BY customer_id")->result();
+                $payment_rows = $CI->db->query("SELECT customer_id, SUM(amount) as amount FROM tbl_customer_due_receives WHERE outlet_id=$outlet_id and del_status='Live' GROUP BY customer_id")->result();
+            } else {
+                $due_rows = $CI->db->query("SELECT customer_id, SUM(due_amount) as due FROM tbl_sales WHERE del_status='Live' and order_status='3' GROUP BY customer_id")->result();
+                $payment_rows = $CI->db->query("SELECT customer_id, SUM(amount) as amount FROM tbl_customer_due_receives WHERE del_status='Live' GROUP BY customer_id")->result();
+            }
+            $due_by_customer = array();
+            foreach ($due_rows as $row) {
+                $due_by_customer[$row->customer_id] = (float)$row->due;
+            }
+            $payment_by_customer = array();
+            foreach ($payment_rows as $row) {
+                $payment_by_customer[$row->customer_id] = (float)$row->amount;
+            }
+            $cache = array('due' => $due_by_customer, 'payment' => $payment_by_customer);
+            $cache_outlet_id = $outlet_id;
+        }
+
+        $due = isset($cache['due'][$customer_id]) ? $cache['due'][$customer_id] : 0;
+        $payment = isset($cache['payment'][$customer_id]) ? $cache['payment'][$customer_id] : 0;
+        $remaining_due = $due - $payment;
+        return $remaining_due;
     }
     /**
      * get Main Menu
