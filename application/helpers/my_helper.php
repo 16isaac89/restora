@@ -3062,8 +3062,19 @@
         return $food_menu_ingredients;
     }
     function getDetailsCombo($food_menu_id) {
-        $CI = & get_instance();
-        $food_menu_ingredients = $CI->db->query("SELECT * FROM tbl_combo_food_menus where `food_menu_id`='$food_menu_id'")->result();
+        // Called for every product on every POS screen render regardless of whether
+        // it is actually a combo (600+ products = 600+ queries that return nothing
+        // for non-combo items). Fetch the whole combo table once per request instead.
+        static $by_food_menu_id = null;
+        if ($by_food_menu_id === null) {
+            $CI = & get_instance();
+            $all_combo_rows = $CI->db->query("SELECT * FROM tbl_combo_food_menus")->result();
+            $by_food_menu_id = array();
+            foreach ($all_combo_rows as $combo_row) {
+                $by_food_menu_id[$combo_row->food_menu_id][] = $combo_row;
+            }
+        }
+        $food_menu_ingredients = isset($by_food_menu_id[$food_menu_id]) ? $by_food_menu_id[$food_menu_id] : array();
         $txt = '';
         foreach ($food_menu_ingredients as $ky=>$value){
             $txt.=$value->name.'(<i class="combo_class" data-qty="'.$value->quantity.'">Qty:'.$value->quantity.'</i>)';
@@ -3241,9 +3252,16 @@
      * @param int
      */
     function getParentNameTemp($id) {
-        $CI = & get_instance();
-        $food_information = $CI->db->query("SELECT * FROM tbl_food_menus where `id`='$id'")->row();
-        return (isset($food_information->name) && $food_information->name?getPlanText($food_information->name)." ":'');
+        // Called up to twice per product per POS screen render; most products share
+        // the same (often empty) parent_id, so a per-argument cache collapses this
+        // from hundreds of queries down to a handful.
+        static $cache = array();
+        if (!array_key_exists($id, $cache)) {
+            $CI = & get_instance();
+            $food_information = $CI->db->query("SELECT * FROM tbl_food_menus where `id`='$id'")->row();
+            $cache[$id] = (isset($food_information->name) && $food_information->name?getPlanText($food_information->name)." ":'');
+        }
+        return $cache[$id];
     }
     function generateCode($number) {
         $food_menu_code = str_pad($number, 2, '0', STR_PAD_LEFT);
@@ -4656,17 +4674,32 @@
         $CI = & get_instance();
         $outlet_id = $CI->session->userdata('outlet_id');
 
-        $CI->db->select('*');
-        $CI->db->from('tbl_promotions');
-        if ($start_date != '') {
-            $CI->db->where('start_date<=', $start_date);
-            $CI->db->where('end_date>=', $start_date);
+        // This used to run one query per product on every POS screen render (600+
+        // products = 600+ queries just for promo checks). Now it fetches every active
+        // promotion for this outlet/date once per request and looks products up in
+        // memory. Cached per outlet+date since main_screen.php calls this once per
+        // product with the same $start_date each time.
+        static $cache = array();
+        $cache_key = $outlet_id . '|' . $start_date;
+        if (!isset($cache[$cache_key])) {
+            $CI->db->select('*');
+            $CI->db->from('tbl_promotions');
+            if ($start_date != '') {
+                $CI->db->where('start_date<=', $start_date);
+                $CI->db->where('end_date>=', $start_date);
+            }
+            $CI->db->where('outlet_id', $outlet_id);
+            $CI->db->where('del_status', 'Live');
+            $all_promotions = $CI->db->get()->result();
+            $by_food_menu_id = array();
+            foreach ($all_promotions as $promotion) {
+                if (!isset($by_food_menu_id[$promotion->food_menu_id])) {
+                    $by_food_menu_id[$promotion->food_menu_id] = $promotion;
+                }
+            }
+            $cache[$cache_key] = $by_food_menu_id;
         }
-        $CI->db->where('food_menu_id', $food_menu_id);
-        $CI->db->where('outlet_id', $outlet_id);
-        $CI->db->where('del_status', 'Live');
-        $query_result = $CI->db->get();
-        $result = $query_result->row();
+        $result = isset($cache[$cache_key][$food_menu_id]) ? $cache[$cache_key][$food_menu_id] : null;
         $return_data['status'] = false;
 
         $return_data['type'] = '';
