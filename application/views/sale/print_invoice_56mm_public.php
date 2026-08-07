@@ -300,7 +300,16 @@
             endif;
             ?>
             <p class="text-center"> <?php echo ($company_info->invoice_footer) ?></p>
-            <p class="text-center">MOMO No:788049<br>Airtel Merch:6881515</p>
+            <?php
+                $momo_number = $company_info->momo_number;
+                $airtel_merchant_number = $company_info->airtel_merchant_number;
+                $payment_footer_parts = array();
+                if ($momo_number) { $payment_footer_parts[] = 'MOMO No:'.escape_output($momo_number); }
+                if ($airtel_merchant_number) { $payment_footer_parts[] = 'Airtel Merch:'.escape_output($airtel_merchant_number); }
+            ?>
+            <?php if ($payment_footer_parts): ?>
+            <p class="text-center"><?php echo implode('<br>', $payment_footer_parts); ?></p>
+            <?php endif; ?>
             <p class="text-center">Powered by mauzobooks.com 256755933629</p>
 
         </div>
