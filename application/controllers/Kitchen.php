@@ -444,6 +444,10 @@ class Kitchen extends Cl_Controller {
     {
         $sale_no = $this->input->post('sale_no');
         $sale = getKitchenSaleDetailsBySaleNo($sale_no);
+        if (!$sale) {
+            echo json_encode(array());
+            return;
+        }
         $result = $this->Kitchen_model->get_all_kitchen_items($sale->id);
         echo json_encode($result);
     }
@@ -451,6 +455,10 @@ class Kitchen extends Cl_Controller {
     {
         $sale_no = $this->input->post('sale_no');
         $sale = getKitchenSaleDetailsBySaleNo($sale_no);
+        if (!$sale) {
+            echo json_encode(array('status' => false, 'is_done' => false, 'is_cooked' => false));
+            return;
+        }
         $is_done = $this->Kitchen_model->get_total_kitchen_type_done_items($sale->id);
         $is_cooked = $this->Kitchen_model->get_total_kitchen_type_started_cooking_items($sale->id);
         $data['status'] = false;
