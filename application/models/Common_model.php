@@ -335,7 +335,11 @@ class Common_model extends CI_Model {
         }
         // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
         // in the database but is hidden from every outlet picker/report filter.
-        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        // Never hide outlet 2 if it would leave zero outlets -- that happens on
+        // arua.rojeycreamery.com's own database, where outlet 2 (Arua) is the ONLY
+        // outlet that exists (this shared code deploys to both sites).
+        $filtered_result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        if ($filtered_result) { $result = $filtered_result; }
         return $result;
     }
     public function getSelectedMenu($menus) {

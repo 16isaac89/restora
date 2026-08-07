@@ -2032,7 +2032,11 @@
 
         // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
         // in the database but is hidden from every outlet picker/report filter.
-        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        // Never hide outlet 2 if it would leave zero outlets -- that happens on
+        // arua.rojeycreamery.com's own database, where outlet 2 (Arua) is the ONLY
+        // outlet that exists (this shared code deploys to both sites).
+        $filtered_result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        if ($filtered_result) { $result = $filtered_result; }
         return $result;
     }
     function getAllOutlestByAssignAll() {
@@ -2055,7 +2059,11 @@
 
         // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
         // in the database but is hidden from every outlet picker/report filter.
-        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        // Never hide outlet 2 if it would leave zero outlets -- that happens on
+        // arua.rojeycreamery.com's own database, where outlet 2 (Arua) is the ONLY
+        // outlet that exists (this shared code deploys to both sites).
+        $filtered_result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        if ($filtered_result) { $result = $filtered_result; }
         return $result;
     }
     function getAllOutlestByAssignFront() {
@@ -2063,7 +2071,11 @@
         // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
         // in the database but is hidden from every outlet picker/report filter.
         $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' ORDER BY outlet_name ASC")->result();
-        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        // Never hide outlet 2 if it would leave zero outlets -- that happens on
+        // arua.rojeycreamery.com's own database, where outlet 2 (Arua) is the ONLY
+        // outlet that exists (this shared code deploys to both sites).
+        $filtered_result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        if ($filtered_result) { $result = $filtered_result; }
         return $result;
     }
     /**
@@ -2084,7 +2096,11 @@
         $result = $CI->db->query("SELECT * FROM tbl_outlets WHERE del_status='Live' AND `company_id`='$company_id'")->result();
         // RojeyCreamery only operates outlet 1 (Gulu) right now -- outlet 2 (Arua) stays
         // in the database but is hidden from every outlet picker/report filter.
-        $result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        // Never hide outlet 2 if it would leave zero outlets -- that happens on
+        // arua.rojeycreamery.com's own database, where outlet 2 (Arua) is the ONLY
+        // outlet that exists (this shared code deploys to both sites).
+        $filtered_result = array_values(array_filter($result, function($row){ return (int)$row->id !== 2; }));
+        if ($filtered_result) { $result = $filtered_result; }
         return $result;
     }
     /**
