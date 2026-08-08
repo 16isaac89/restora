@@ -1041,35 +1041,6 @@ if ($this->session->flashdata('exception')) {
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>MOMO Number</label>
-                                    <input type="text" id="momo_number" name="momo_number" class="form-control"
-                                        placeholder="e.g. 788049" maxlength="50"
-                                        value="<?php echo escape_output($outlet_information->momo_number); ?>">
-                                </div>
-                                <?php if (form_error('momo_number')) { ?>
-                                <div class="callout callout-danger my-2">
-                                    <?php echo form_error('momo_number'); ?>
-                                </div>
-                                <?php } ?>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Airtel Merchant Number</label>
-                                    <input type="text" id="airtel_merchant_number" name="airtel_merchant_number" class="form-control"
-                                        placeholder="e.g. 6881515" maxlength="50"
-                                        value="<?php echo escape_output($outlet_information->airtel_merchant_number); ?>">
-                                </div>
-                                <?php if (form_error('airtel_merchant_number')) { ?>
-                                <div class="callout callout-danger my-2">
-                                    <?php echo form_error('airtel_merchant_number'); ?>
-                                </div>
-                                <?php } ?>
-                            </div>
-                        </div>
-                        
                         <!-- ZATCA Phase-2 Configuration Section -->
                         <div class="row my-4">
                             <div class="col-12">

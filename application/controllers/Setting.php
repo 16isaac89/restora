@@ -94,8 +94,6 @@ class Setting extends Cl_Controller {
             $this->form_validation->set_rules('zone_name', lang('Time_Zone'), 'required|max_length[250]');
             $this->form_validation->set_rules('currency', lang('currency'), 'required|max_length[250]');
             $this->form_validation->set_rules('invoice_footer', lang('invoice_footer'), 'max_length[250]');
-            $this->form_validation->set_rules('momo_number', 'MOMO Number', 'max_length[50]');
-            $this->form_validation->set_rules('airtel_merchant_number', 'Airtel Merchant Number', 'max_length[50]');
             $this->form_validation->set_rules('zatca_otp', 'ZATCA API OTP', 'max_length[6]|numeric');
             if(str_rot13($language_manifesto)!="eriutoeri"):
                 $this->form_validation->set_rules('default_waiter', lang('Default_Waiter'), 'max_length[11]');
@@ -137,8 +135,6 @@ class Setting extends Cl_Controller {
                 $outlet_info['default_customer'] =htmlspecialcharscustom($this->input->post($this->security->xss_clean('default_customer')));
                 $outlet_info['default_payment'] =htmlspecialcharscustom($this->input->post($this->security->xss_clean('default_payment')));
                 $outlet_info['invoice_footer'] =htmlspecialcharscustom($this->input->post($this->security->xss_clean('invoice_footer')));
-                $outlet_info['momo_number'] =htmlspecialcharscustom($this->input->post($this->security->xss_clean('momo_number')));
-                $outlet_info['airtel_merchant_number'] =htmlspecialcharscustom($this->input->post($this->security->xss_clean('airtel_merchant_number')));
 
                 $outlet_info['service_amount'] = htmlspecialcharscustom($this->input->post('service_amount'));
                 $outlet_info['take_away_service_charge'] = htmlspecialcharscustom($this->input->post('take_away_service_charge'));

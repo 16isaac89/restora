@@ -552,16 +552,6 @@ class Sale extends Cl_Controller {
         $company_id = $this->session->userdata('company_id');
 
         $outlet_id = $this->session->userdata('outlet_id');
-
-        // Settings like MOMO/Airtel numbers are cached into the session at login
-        // only -- refresh them on every POS screen load too, so a settings change
-        // takes effect immediately without requiring the cashier to log out.
-        $company_for_receipt = $this->Common_model->getDataById($company_id, "tbl_companies");
-        if ($company_for_receipt) {
-            $this->session->set_userdata('momo_number', $company_for_receipt->momo_number);
-            $this->session->set_userdata('airtel_merchant_number', $company_for_receipt->airtel_merchant_number);
-        }
-
         $data = array();
         $data['customers'] = $this->Common_model->getAllByCompanyIdForDropdown($company_id, 'tbl_customers');
         $data['food_menus'] = $this->Sale_model->getAllFoodMenus();

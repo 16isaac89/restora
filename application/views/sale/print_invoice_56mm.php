@@ -328,20 +328,6 @@
                 ?>
                 <p style="text-align:center"><?php echo escape_output(($sale_object->paid_date_time)); ?></p>
                 <p class="text-center"> <?php echo ($this->session->userdata('invoice_footer')) ?></p>
-                <?php
-                    // Read fresh from the database rather than session -- this app
-                    // regenerates session IDs on some requests, which was causing
-                    // stale/missing values here intermittently.
-                    $company_for_receipt_footer = $this->db->select('momo_number, airtel_merchant_number')->from('tbl_companies')->where('id', $this->session->userdata('company_id'))->get()->row();
-                    $momo_number = $company_for_receipt_footer ? $company_for_receipt_footer->momo_number : '';
-                    $airtel_merchant_number = $company_for_receipt_footer ? $company_for_receipt_footer->airtel_merchant_number : '';
-                    $payment_footer_parts = array();
-                    if ($momo_number) { $payment_footer_parts[] = 'MOMO No:'.escape_output($momo_number); }
-                    if ($airtel_merchant_number) { $payment_footer_parts[] = 'Airtel Merch:'.escape_output($airtel_merchant_number); }
-                ?>
-                <?php if ($payment_footer_parts): ?>
-                <p class="text-center"><?php echo implode('<br>', $payment_footer_parts); ?></p>
-                <?php endif; ?>
                 <p class="text-center">Powered by mauzobooks.com 256755933629</p>
                 <div class="text-center"><img src="<?php echo base_url()?>qr_code/<?php echo escape_output($sale_object->id)?>.png"></div>
             </div>

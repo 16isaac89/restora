@@ -462,8 +462,6 @@ class Authentication extends Cl_Controller {
                                 $company_info_session['default_payment'] =$company_info->default_payment;
                                 $company_info_session['invoice_footer'] = $company_info->invoice_footer;
                                 $company_info_session['invoice_logo'] = $company_info->invoice_logo;
-                                $company_info_session['momo_number'] = $company_info->momo_number;
-                                $company_info_session['airtel_merchant_number'] = $company_info->airtel_merchant_number;
                                 $company_info_session['language_manifesto'] = $company_info->language_manifesto;
                                 $company_info_session['collect_tax'] = $company_info->collect_tax;
                                 $company_info_session['tax_title'] = $company_info->tax_title;
@@ -2908,9 +2906,6 @@ class Authentication extends Cl_Controller {
                 $data['collect_tax'] = $company->collect_tax;
                 $data['tax_registration_no'] = $company->tax_registration_no;
                 $data['invoice_footer'] = $company->invoice_footer;
-                $momo_number = isset($company->momo_number) && $company->momo_number ? $company->momo_number : '';
-                $airtel_merchant_number = isset($company->airtel_merchant_number) && $company->airtel_merchant_number ? $company->airtel_merchant_number : '';
-                $data['payment_footer'] = trim(($momo_number ? "MOMO No:$momo_number" : '') . ($momo_number && $airtel_merchant_number ? "\n" : '') . ($airtel_merchant_number ? "Airtel Merch:$airtel_merchant_number" : ''));
                 $data['powered_by_footer'] = 'Powered by mauzobooks.com 256755933629';
                 $data['type'] = $printer->type;
                 $data['printer_ip_address'] = $printer->printer_ip_address;
@@ -3680,8 +3675,6 @@ class Authentication extends Cl_Controller {
                                 $company_info_session['default_payment'] =$company_info->default_payment;
                                 $company_info_session['invoice_footer'] = $company_info->invoice_footer;
                                 $company_info_session['invoice_logo'] = $company_info->invoice_logo;
-                                $company_info_session['momo_number'] = $company_info->momo_number;
-                                $company_info_session['airtel_merchant_number'] = $company_info->airtel_merchant_number;
                                 $company_info_session['language_manifesto'] = $company_info->language_manifesto;
                                 $company_info_session['collect_tax'] = $company_info->collect_tax;
                                 $company_info_session['tax_title'] = $company_info->tax_title;
