@@ -265,7 +265,7 @@ foreach ($waiters as $waiter){
 <input type="hidden" id="txt_kot" value="<?php echo lang('KOT'); ?>">
 <input type="hidden" id="outlet_address" value="<?php echo escape_output($this->session->userdata('address')); ?>">
 <input type="hidden" id="outlet_phone" value="<?php echo escape_output($this->session->userdata('phone')); ?>">
-<input type="hidden" id="invoice_footer" value="<?php echo escape_output($this->session->userdata('invoice_footer')); ?>">
+<input type="hidden" id="invoice_footer" value="<?php echo escape_output($getCompanyInfo->invoice_footer); ?>">
 <input type="hidden" id="user_name" value="<?php echo escape_output($this->session->userdata('full_name')); ?>">
 <input type="hidden" id="user_id" value="<?php echo escape_output($this->session->userdata('user_id')); ?>">
 <input type="hidden" id="outlet_id_indexdb" value="<?php echo escape_output($this->session->userdata('outlet_id')); ?>">
