@@ -329,8 +329,12 @@
                 <p style="text-align:center"><?php echo escape_output(($sale_object->paid_date_time)); ?></p>
                 <p class="text-center"> <?php echo ($this->session->userdata('invoice_footer')) ?></p>
                 <?php
-                    $momo_number = $this->session->userdata('momo_number');
-                    $airtel_merchant_number = $this->session->userdata('airtel_merchant_number');
+                    // Read fresh from the database rather than session -- this app
+                    // regenerates session IDs on some requests, which was causing
+                    // stale/missing values here intermittently.
+                    $company_for_receipt_footer = $this->db->select('momo_number, airtel_merchant_number')->from('tbl_companies')->where('id', $this->session->userdata('company_id'))->get()->row();
+                    $momo_number = $company_for_receipt_footer ? $company_for_receipt_footer->momo_number : '';
+                    $airtel_merchant_number = $company_for_receipt_footer ? $company_for_receipt_footer->airtel_merchant_number : '';
                     $payment_footer_parts = array();
                     if ($momo_number) { $payment_footer_parts[] = 'MOMO No:'.escape_output($momo_number); }
                     if ($airtel_merchant_number) { $payment_footer_parts[] = 'Airtel Merch:'.escape_output($airtel_merchant_number); }
