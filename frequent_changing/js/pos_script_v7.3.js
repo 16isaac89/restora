@@ -38,7 +38,6 @@
       let outlet_tax_registration_no = $("#outlet_tax_registration_no").val();
       let associate_user_name = $("#associate_user_name").val();
       let invoice_footer = $("#invoice_footer").val();
-      let invoice_payment_footer = "MOMO No:788049<br>Airtel Merch:6881515";
       let invoice_powered_by = "Powered by mauzobooks.com 256755933629";
       let inv_total_item = $("#inv_total_item").val();
       let inv_total = $("#inv_total").val();
@@ -3218,7 +3217,6 @@
                                 </table>
                             <p style="text-align:center;margin:0px">` + (order.paid_date_time) + `</p>
                                 <p style="text-align:center;margin:0px"> `+invoice_footer+`</p>
-                                <p style="text-align:center;margin:0px">`+invoice_payment_footer+`</p>
                                 <p style="text-align:center;margin:0px">`+invoice_powered_by+`</p>
                                 <br>
                                 <div class="text-center"><div id="`+qrcode_id+`"></div></div>
