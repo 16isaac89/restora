@@ -825,15 +825,19 @@
       function getSelectedOrderDetails(sale_no_new) {
 
         return new Promise(function (resolve, reject) {
+            let found = false;
             let objectStore = db.transaction(['sales'], "readwrite").objectStore("sales");
             objectStore.openCursor().onsuccess = function(event) {
                 let cursor = event.target.result;
                 if (cursor) {
                        if(cursor.value.sale_no == sale_no_new) {
+                        found = true;
                         let orderData = cursor.value;
                         resolve(orderData.order);
                     }
                     cursor.continue();
+                } else if (!found) {
+                    reject(new Error("No local order found for sale_no " + sale_no_new));
                 }
             };
 
@@ -11861,10 +11865,12 @@
       $(".kitchen_ids").prop("checked", true);
     }
 
+    let kotModalOrderSnapshot = null;
     function render_kot_item_selector(sale_no) {
       $("#kot_item_list_holder").html("");
       $("#kot_tracking_summary").html("").hide();
       $("#kot_check_all").prop("checked", false);
+      kotModalOrderSnapshot = null;
       if (!sale_no) {
         return;
       }
@@ -11872,6 +11878,7 @@
         let response = typeof data === "string" ? jQuery.parseJSON(data) : data;
         let items = response && Array.isArray(response.items) ? response.items : [];
         let lines = getKotDisplayLinesFromOrderItems(items);
+        kotModalOrderSnapshot = { sale_no: sale_no, response: response };
         if(!lines.length){
           $("#kot_tracking_summary").html("").hide();
           $("#kot_item_list_holder").html('<p class="kot_empty_state">No KOT items found.</p>');
@@ -11965,8 +11972,7 @@
     }
 
     function print_selected_kot_lines_from_order(selected_order_no, selected_line_ids) {
-      getSelectedOrderDetails(selected_order_no).then(function (data) {
-        let response = typeof data === "string" ? jQuery.parseJSON(data) : data;
+      function withOrderResponse(response) {
         if (!response || !Array.isArray(response.items)) {
           toastr['error']("Unable to load KOT items.", '');
           return;
@@ -11989,6 +11995,17 @@
         let filteredOrder = $.extend(true, {}, response);
         filteredOrder.items = filteredItems;
         print_kot_print(JSON.stringify(filteredOrder), 1);
+      }
+      // Reuse the exact snapshot the checkboxes were built from, when available,
+      // so a background refresh/edit between opening the modal and clicking
+      // print can't shift item indexes out from under the selected checkboxes.
+      if (kotModalOrderSnapshot && kotModalOrderSnapshot.sale_no == selected_order_no) {
+        withOrderResponse(kotModalOrderSnapshot.response);
+        return;
+      }
+      getSelectedOrderDetails(selected_order_no).then(function (data) {
+        let response = typeof data === "string" ? jQuery.parseJSON(data) : data;
+        withOrderResponse(response);
       }).catch(function () {
         toastr['error']("Unable to load KOT items.", '');
       });
