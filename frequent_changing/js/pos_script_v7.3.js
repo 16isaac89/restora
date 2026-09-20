@@ -2101,6 +2101,23 @@
           };
       }
 
+      // Prevents the same recent_sales record from being POSTed to Sale/push_online twice
+      // concurrently (e.g. the "print invoice" trigger and the background loop both picking
+      // up the same order at the same moment).
+      let syncInFlightSalesIds = {};
+      function attemptSyncSaleRowGuarded(sale_row, notify, onSettled) {
+          let key = String(sale_row.sales_id);
+          if (syncInFlightSalesIds[key]) {
+              if (typeof onSettled === "function") onSettled(false);
+              return;
+          }
+          syncInFlightSalesIds[key] = true;
+          attemptSyncSaleRow(sale_row, notify, function(success) {
+              delete syncInFlightSalesIds[key];
+              if (typeof onSettled === "function") onSettled(success);
+          });
+      }
+
       // Shared by the automatic background loop AND the manual "sync all / sync this order"
       // modal, so both paths get identical validation, backoff-on-failure and notification
       // behaviour. onSettled(success) is always called exactly once.
@@ -2171,7 +2188,7 @@
                   return;
               }
 
-              attemptSyncSaleRow(sale_row, always_notify, function(success) {
+              attemptSyncSaleRowGuarded(sale_row, always_notify, function(success) {
                   pushOnlineInProgress = false;
                   setTimeout(function() {
                       push_next_offline_sale(always_notify, chainCount + 1);
@@ -2229,11 +2246,44 @@
                   if (typeof onSettled === "function") onSettled(true);
                   return;
               }
-              attemptSyncSaleRow(sale_row, true, function(success) {
+              attemptSyncSaleRowGuarded(sale_row, true, function(success) {
                   if (typeof onSettled === "function") onSettled(success);
               });
           });
       }
+
+      function getOfflineRecentSaleBySaleNo(sale_no, callback) {
+          let objectStore = db.transaction(['recent_sales'], "readonly").objectStore("recent_sales");
+          objectStore.openCursor().onsuccess = function(event) {
+              let cursor = event.target.result;
+              if (cursor) {
+                  if (cursor.value.sale_no == sale_no) {
+                      callback(cursor.value);
+                      return;
+                  }
+                  cursor.continue();
+              } else {
+                  callback(null);
+              }
+          };
+      }
+
+      // Fires an immediate, targeted sync attempt for one sale the moment its invoice is
+      // printed, instead of waiting for the next 10s background polling tick. Silent (no
+      // toast) since this runs automatically on every print; the background loop and the
+      // pending-orders modal remain the safety net if this specific attempt fails.
+      function triggerImmediateSyncForSale(sale_no) {
+          if (!sale_no) {
+              return;
+          }
+          getOfflineRecentSaleBySaleNo(sale_no, function(sale_row) {
+              if (!sale_row || Number(sale_row.online_push) === 1) {
+                  return;
+              }
+              attemptSyncSaleRowGuarded(sale_row, false, function() {});
+          });
+      }
+
       function remove_more_20(){
           let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
           let counter_row = 1;
@@ -14087,6 +14137,9 @@
       let newWindow = "";
       let print_type_invoice = $(".print_type_invoice").val();
       console.log("[PRINT][INVOICE] print_invoice called", { sale_no: sale_no, print_type_invoice: print_type_invoice });
+      // The invoice is only printed once the sale is finalized, so this is the earliest safe
+      // moment to push it to the server too, rather than waiting for the next background tick.
+      triggerImmediateSyncForSale(sale_no);
         if (print_type_invoice == "web_browser_popup" || print_type_invoice == "web_browser") {
             getSelectedOrderDetailsRecentSale(sale_no).then(function(order_info){
                 call_print_invoice(order_info,inv_qr_code_enable_status);
@@ -14153,6 +14206,7 @@
       let newWindow = "";
       let print_type_invoice = $(".print_type_invoice").val();
       console.log("[PRINT][INVOICE] print_invoiceResent called", { sale_no: sale_no, print_type_invoice: print_type_invoice });
+      triggerImmediateSyncForSale(sale_no);
         if (print_type_invoice == "web_browser_popup" || print_type_invoice == "web_browser") {
            getSelectedOrderDetailsRecentSale(sale_no).then(function(order_info){
                 call_print_invoice(order_info,inv_qr_code_enable_status);
