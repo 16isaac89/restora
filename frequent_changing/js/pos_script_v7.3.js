@@ -2036,34 +2036,77 @@
       }
   
       let pushOnlineInProgress = false;
-      let pushOnlineRetryBlockedUntil = 0;
+      const SYNC_BACKOFF_BASE_MS = 15000;
+      const SYNC_BACKOFF_CAP_MS = 300000; // 5 minutes max between retries of a stuck order
+      const SYNC_MAX_CHAIN_PER_TICK = 25; // safety cap so a bad batch can't spin synchronously forever
 
+      // Picks the oldest pending sale that is NOT currently backed off, skipping over any
+      // record whose next_retry_at is still in the future so one stuck order can't block
+      // every other order queued behind it.
       function getNextOfflineRecentSale(callback) {
           let objectStore = db.transaction(['recent_sales'], "readonly").objectStore("recent_sales");
           let request = objectStore.openCursor();
+          let now = Date.now();
+          let sawPendingNotDue = false;
           request.onsuccess = function(event) {
               let cursor = event.target.result;
               if (cursor) {
-                  if (Number(cursor.value.online_push) === 0) {
-                      callback(cursor.value);
-                      return;
+                  let row = cursor.value;
+                  if (Number(row.online_push) === 0) {
+                      let nextRetryAt = Number(row.next_retry_at) || 0;
+                      if (nextRetryAt <= now) {
+                          callback(row);
+                          return;
+                      }
+                      sawPendingNotDue = true;
                   }
                   cursor.continue();
               } else {
-                  callback(null);
+                  callback(null, sawPendingNotDue);
               }
           };
           request.onerror = function() {
-              callback(null);
+              callback(null, false);
           };
       }
 
-      function push_next_offline_sale(always_notify) {
+      // Persists a failed sync attempt on the offline record itself (not just in memory) so the
+      // backoff survives page reloads, and so getNextOfflineRecentSale can skip past it and let
+      // every other queued order keep syncing in the meantime.
+      function recordSyncAttemptFailure(sales_id, callback) {
+          let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
+          let updated = false;
+          objectStore.openCursor().onsuccess = function(event) {
+              let cursor = event.target.result;
+              if (cursor) {
+                  if (cursor.value.sales_id == sales_id) {
+                      let row = cursor.value;
+                      let attempts = (Number(row.sync_attempts) || 0) + 1;
+                      row.sync_attempts = attempts;
+                      row.next_retry_at = Date.now() + Math.min(SYNC_BACKOFF_CAP_MS, SYNC_BACKOFF_BASE_MS * Math.pow(2, attempts - 1));
+                      let request = cursor.update(row);
+                      updated = true;
+                      request.onsuccess = function() {
+                          if (typeof callback === "function") callback(true);
+                      };
+                      request.onerror = function() {
+                          if (typeof callback === "function") callback(false);
+                      };
+                      return;
+                  }
+                  cursor.continue();
+              } else if (!updated) {
+                  if (typeof callback === "function") callback(false);
+              }
+          };
+      }
+
+      function push_next_offline_sale(always_notify, chainCount) {
+          chainCount = chainCount || 0;
           if (pushOnlineInProgress) {
               return;
           }
-
-          if (!always_notify && pushOnlineRetryBlockedUntil > Date.now()) {
+          if (chainCount >= SYNC_MAX_CHAIN_PER_TICK) {
               return;
           }
 
@@ -2083,6 +2126,14 @@
 
               let sale_no = rowData.sale_no || "";
               let is_offline_system = Number(sale_row.is_offline_system);
+
+              function retryOtherOrders() {
+                  pushOnlineInProgress = false;
+                  setTimeout(function() {
+                      push_next_offline_sale(always_notify, chainCount + 1);
+                  }, 500);
+              }
+
               $.ajax({
                   url:base_url+"Sale/push_online",
                   method:"post",
@@ -2093,28 +2144,36 @@
                       csrf_name_: csrf_value_
                   },
                   success:function(response) {
+                      // The endpoint always echoes back the exact offline sales_id on real success.
+                      // Anything else (e.g. an empty body from a failed save, or a login page from
+                      // an expired session) must NOT be treated as a successful sync.
+                      let looksValid = response !== null && response !== undefined
+                          && String(response).trim() === String(sale_row.sales_id);
+
+                      if (!looksValid) {
+                          recordSyncAttemptFailure(sale_row.sales_id, retryOtherOrders);
+                          return;
+                      }
+
                       if(always_notify || !is_offline_system){
                           notify_online(sale_no);
                       }
-                      pushOnlineRetryBlockedUntil = 0;
                       update_online_push(response, function(updatedOnlinePush) {
                           if(!updatedOnlinePush){
-                              pushOnlineRetryBlockedUntil = Date.now() + 30000;
-                              pushOnlineInProgress = false;
+                              recordSyncAttemptFailure(sale_row.sales_id, retryOtherOrders);
                               return;
                           }
                           pushOnlineInProgress = false;
                           setTimeout(function() {
-                              push_next_offline_sale(always_notify);
+                              push_next_offline_sale(always_notify, chainCount + 1);
                           }, 750);
                       });
                   },
                   error:function(){
-                      pushOnlineRetryBlockedUntil = Date.now() + 30000;
-                      pushOnlineInProgress = false;
                       if(always_notify){
                           toastr['error']("Unable to sync offline orders right now. Please retry.", '');
                       }
+                      recordSyncAttemptFailure(sale_row.sales_id, retryOtherOrders);
                   }
               });
           });
@@ -2158,7 +2217,11 @@
           }
           remove_more_20();
       }, 10000);
-  
+
+      // Run an immediate connectivity check on load instead of waiting for the first 15s
+      // interval tick, so orders placed right after opening/refreshing the POS aren't
+      // needlessly queued offline while the terminal is actually online.
+      checkInternetConnectionNew();
       setInterval(function () {
           checkInternetConnectionNew();
       }, 15000);

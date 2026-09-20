@@ -2260,7 +2260,14 @@ class Sale extends Cl_Controller {
     }
     public function push_online(){
         $sale_id_offline = $this->input->post('sales_id');
+        $trans_started = false;
+        try {
         $order_details = json_decode(($this->input->post('orders')));
+        if (!$order_details || !isset($order_details->sale_no) || !trim_checker($order_details->sale_no)) {
+            $this->output->set_status_header(422);
+            echo json_encode(array('status' => false, 'message' => 'Invalid order payload'));
+            return;
+        }
         $sale_no = $order_details->sale_no;
         $sale_id = '';
         $check_existing = getSaleDetailsBySaleNo($sale_no);
@@ -2322,6 +2329,7 @@ class Sale extends Cl_Controller {
         $data['sale_vat_objects'] = json_encode($order_details->sale_vat_objects);
         $data['order_type'] = trim_checker($order_details->order_type);
         $this->db->trans_begin();
+        $trans_started = true;
         if($sale_id>0){
             $data['modified'] = 'Yes';
             $this->db->where('id', $sale_id);
@@ -2596,7 +2604,16 @@ class Sale extends Cl_Controller {
         $this->db->trans_complete();
         if ($this->db->trans_status() === FALSE) {
             $this->db->trans_rollback();
+            log_message('error', 'push_online: transaction failed for offline sale '.$sale_id_offline.' / sale_no '.$sale_no);
+            $this->output->set_status_header(500);
+            echo json_encode(array('status' => false, 'message' => 'Sync failed, will retry.'));
         } else {
+            // Acknowledge the offline client as soon as the sale itself is safely committed, so a
+            // failure in the best-effort notification/PDF/ZATCA steps below can never roll back
+            // or block an otherwise-successful sync.
+            echo escape_output($sale_id_offline);
+            $this->db->trans_commit();
+            try {
             $send_sms_status = isset($order_details->send_sms_status) && $order_details->send_sms_status?$order_details->send_sms_status:'';
             $send_email_status = isset($order_details->send_email_status) && $order_details->send_email_status?$order_details->send_email_status:'';
             $send_whatsapp_status = isset($order_details->send_whatsapp_status) && $order_details->send_whatsapp_status?$order_details->send_whatsapp_status:'';
@@ -2709,12 +2726,20 @@ We hope to see you again!";
              
             // Submit invoice to ZATCA Phase-2
             $this->submitToZatca($sales_id);
-            echo escape_output($sale_id_offline);
-            $this->db->trans_commit();
-           
+            } catch (\Throwable $e) {
+                log_message('error', 'push_online: post-sync side effects failed for sale_id '.$sales_id.': '.$e->getMessage());
+            }
+        }
+        } catch (\Throwable $e) {
+            if ($trans_started) {
+                $this->db->trans_rollback();
+            }
+            log_message('error', 'push_online: exception for offline sale '.$sale_id_offline.': '.$e->getMessage());
+            $this->output->set_status_header(500);
+            echo json_encode(array('status' => false, 'message' => 'Sync failed, will retry.'));
         }
     }
-    
+
     /**
      * Submit invoice to ZATCA Phase-2 (Optimized)
      * Handles ZATCA e-invoice submission after sale completion
