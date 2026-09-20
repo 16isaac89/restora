@@ -2101,6 +2101,60 @@
           };
       }
 
+      // Shared by the automatic background loop AND the manual "sync all / sync this order"
+      // modal, so both paths get identical validation, backoff-on-failure and notification
+      // behaviour. onSettled(success) is always called exactly once.
+      function attemptSyncSaleRow(sale_row, notify, onSettled) {
+          let rowData = {};
+          try {
+              rowData = JSON.parse(sale_row.order || "{}");
+          } catch (e) {
+              rowData = {};
+          }
+          let sale_no = rowData.sale_no || "";
+          let is_offline_system = Number(sale_row.is_offline_system);
+
+          $.ajax({
+              url:base_url+"Sale/push_online",
+              method:"post",
+              timeout: 15000,
+              data:{
+                  orders : sale_row.order,
+                  sales_id : sale_row.sales_id,
+                  csrf_name_: csrf_value_
+              },
+              success:function(response) {
+                  // The endpoint always echoes back the exact offline sales_id on real success.
+                  // Anything else (e.g. an empty body from a failed save, or a login page from
+                  // an expired session) must NOT be treated as a successful sync.
+                  let looksValid = response !== null && response !== undefined
+                      && String(response).trim() === String(sale_row.sales_id);
+
+                  if (!looksValid) {
+                      recordSyncAttemptFailure(sale_row.sales_id, function() { onSettled(false); });
+                      return;
+                  }
+
+                  if(notify || !is_offline_system){
+                      notify_online(sale_no);
+                  }
+                  update_online_push(response, function(updatedOnlinePush) {
+                      if(!updatedOnlinePush){
+                          recordSyncAttemptFailure(sale_row.sales_id, function() { onSettled(false); });
+                          return;
+                      }
+                      onSettled(true);
+                  });
+              },
+              error:function(){
+                  if(notify){
+                      toastr['error']("Unable to sync offline orders right now. Please retry.", '');
+                  }
+                  recordSyncAttemptFailure(sale_row.sales_id, function() { onSettled(false); });
+              }
+          });
+      }
+
       function push_next_offline_sale(always_notify, chainCount) {
           chainCount = chainCount || 0;
           if (pushOnlineInProgress) {
@@ -2117,64 +2171,11 @@
                   return;
               }
 
-              let rowData = {};
-              try {
-                  rowData = JSON.parse(sale_row.order || "{}");
-              } catch (e) {
-                  rowData = {};
-              }
-
-              let sale_no = rowData.sale_no || "";
-              let is_offline_system = Number(sale_row.is_offline_system);
-
-              function retryOtherOrders() {
+              attemptSyncSaleRow(sale_row, always_notify, function(success) {
                   pushOnlineInProgress = false;
                   setTimeout(function() {
                       push_next_offline_sale(always_notify, chainCount + 1);
-                  }, 500);
-              }
-
-              $.ajax({
-                  url:base_url+"Sale/push_online",
-                  method:"post",
-                  timeout: 15000,
-                  data:{
-                      orders : sale_row.order,
-                      sales_id : sale_row.sales_id,
-                      csrf_name_: csrf_value_
-                  },
-                  success:function(response) {
-                      // The endpoint always echoes back the exact offline sales_id on real success.
-                      // Anything else (e.g. an empty body from a failed save, or a login page from
-                      // an expired session) must NOT be treated as a successful sync.
-                      let looksValid = response !== null && response !== undefined
-                          && String(response).trim() === String(sale_row.sales_id);
-
-                      if (!looksValid) {
-                          recordSyncAttemptFailure(sale_row.sales_id, retryOtherOrders);
-                          return;
-                      }
-
-                      if(always_notify || !is_offline_system){
-                          notify_online(sale_no);
-                      }
-                      update_online_push(response, function(updatedOnlinePush) {
-                          if(!updatedOnlinePush){
-                              recordSyncAttemptFailure(sale_row.sales_id, retryOtherOrders);
-                              return;
-                          }
-                          pushOnlineInProgress = false;
-                          setTimeout(function() {
-                              push_next_offline_sale(always_notify, chainCount + 1);
-                          }, 750);
-                      });
-                  },
-                  error:function(){
-                      if(always_notify){
-                          toastr['error']("Unable to sync offline orders right now. Please retry.", '');
-                      }
-                      recordSyncAttemptFailure(sale_row.sales_id, retryOtherOrders);
-                  }
+                  }, success ? 750 : 500);
               });
           });
       }
@@ -2182,8 +2183,56 @@
       function push_online(){
           push_next_offline_sale(false);
       }
-      function push_online_sync(){
-          push_next_offline_sale(true);
+
+      // Fetches a single recent_sales record by its exact sales_id (used by the "sync this
+      // order" button in the pending-orders modal, as opposed to getNextOfflineRecentSale
+      // which picks whichever eligible order is oldest).
+      function getOfflineRecentSaleById(sales_id, callback) {
+          let objectStore = db.transaction(['recent_sales'], "readonly").objectStore("recent_sales");
+          objectStore.openCursor().onsuccess = function(event) {
+              let cursor = event.target.result;
+              if (cursor) {
+                  if (cursor.value.sales_id == sales_id) {
+                      callback(cursor.value);
+                      return;
+                  }
+                  cursor.continue();
+              } else {
+                  callback(null);
+              }
+          };
+      }
+
+      // Returns every order still waiting to sync (online_push === 0), ignoring backoff, for
+      // display in the pending-orders modal.
+      function collectPendingSyncRows(callback) {
+          let rows = [];
+          let objectStore = db.transaction(['recent_sales'], "readonly").objectStore("recent_sales");
+          objectStore.openCursor().onsuccess = function(event) {
+              let cursor = event.target.result;
+              if (cursor) {
+                  if (Number(cursor.value.online_push) === 0) {
+                      rows.push(cursor.value);
+                  }
+                  cursor.continue();
+              } else {
+                  callback(rows);
+              }
+          };
+      }
+
+      // Manually forces a sync attempt for one specific order right now, bypassing its backoff.
+      function forceSyncSingleOrder(sales_id, onSettled) {
+          getOfflineRecentSaleById(sales_id, function(sale_row) {
+              if (!sale_row) {
+                  // Already synced (or removed) by the time the button was clicked.
+                  if (typeof onSettled === "function") onSettled(true);
+                  return;
+              }
+              attemptSyncSaleRow(sale_row, true, function(success) {
+                  if (typeof onSettled === "function") onSettled(success);
+              });
+          });
       }
       function remove_more_20(){
           let objectStore = db.transaction(['recent_sales'], "readwrite").objectStore("recent_sales");
@@ -2226,8 +2275,136 @@
           checkInternetConnectionNew();
       }, 15000);
   
+      // ---- Pending-orders sync modal: lists every order still waiting to sync, with a
+      // "Sync All" button and a per-row "Sync" button so staff can see and clear anything
+      // blocking a table release without waiting on the automatic background retry. ----
+      let syncPendingModalRefreshTimer = null;
+
+      function startSyncPendingModalAutoRefresh() {
+          stopSyncPendingModalAutoRefresh();
+          syncPendingModalRefreshTimer = setInterval(renderSyncPendingOrdersModal, 5000);
+      }
+      function stopSyncPendingModalAutoRefresh() {
+          if (syncPendingModalRefreshTimer) {
+              clearInterval(syncPendingModalRefreshTimer);
+              syncPendingModalRefreshTimer = null;
+          }
+      }
+
+      function renderSyncPendingOrdersModal() {
+          if (!$("#sync_pending_orders_modal").hasClass("active")) {
+              return;
+          }
+          collectPendingSyncRows(function(rows) {
+              $("#sync_pending_orders_count").text(rows.length);
+              let now = Date.now();
+              let html = '';
+
+              if (!rows.length) {
+                  html = '<div class="sync_pending_empty">Nothing pending &mdash; every order is synced.</div>';
+              } else {
+                  rows.sort(function(a, b) {
+                      return (a.sales_id > b.sales_id) ? 1 : -1;
+                  });
+                  rows.forEach(function(row) {
+                      let data = {};
+                      try { data = JSON.parse(row.order || "{}"); } catch (e) { data = {}; }
+
+                      let attempts = Number(row.sync_attempts) || 0;
+                      let nextRetryAt = Number(row.next_retry_at) || 0;
+                      let statusLabel;
+                      if (attempts === 0) {
+                          statusLabel = 'Waiting to sync';
+                      } else if (nextRetryAt > now) {
+                          let secsLeft = Math.max(1, Math.ceil((nextRetryAt - now) / 1000));
+                          statusLabel = 'Failed '+attempts+'x &mdash; auto-retry in '+secsLeft+'s';
+                      } else {
+                          statusLabel = 'Failed '+attempts+'x &mdash; retrying now';
+                      }
+
+                      let saleLabel = data.sale_no || ('Order #'+row.sales_id);
+                      let tableLabel = data.orders_table_text ? data.orders_table_text : 'No table';
+                      let amountLabel = data.total_payable ? Number(data.total_payable).toFixed(2) : '0.00';
+
+                      html += '<div class="single_row_notification_header fix ir_h25_bb1 sync_pending_row">'
+                          + '<div class="fix single_notification">'
+                          +   '<strong>'+ escapeHtmlForModal(saleLabel) +'</strong>'
+                          +   '<div class="sync_pending_meta">'+ escapeHtmlForModal(tableLabel) +' &middot; '+ amountLabel +'</div>'
+                          +   '<div class="sync_pending_status">'+ statusLabel +'</div>'
+                          + '</div>'
+                          + '<div class="fix single_serve_button">'
+                          +   '<button type="button" class="bg__green sync_pending_row_btn" data-sales_id="'+ row.sales_id +'">Sync</button>'
+                          + '</div>'
+                          + '</div>';
+                  });
+              }
+
+              $("#sync_pending_orders_list_holder").html(html);
+          });
+      }
+
+      function escapeHtmlForModal(text) {
+          return String(text)
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;");
+      }
+
       $(document).on("click", "#sync_online", function (e) {
-          push_online_sync();
+          e.preventDefault();
+          renderSyncPendingOrdersModal();
+          $("#sync_pending_orders_modal").addClass("active");
+          startSyncPendingModalAutoRefresh();
+      });
+
+      $(document).on("click", "#sync_pending_orders_close", function (e) {
+          $("#sync_pending_orders_modal").removeClass("active");
+          stopSyncPendingModalAutoRefresh();
+      });
+
+      $(document).on("click", "#sync_pending_orders_sync_all", function (e) {
+          let $btn = $(this);
+          if ($btn.prop("disabled")) {
+              return;
+          }
+          $btn.prop("disabled", true).addClass("btn_disabled_sync");
+
+          collectPendingSyncRows(function(rows) {
+              if (!rows.length) {
+                  $btn.prop("disabled", false).removeClass("btn_disabled_sync");
+                  renderSyncPendingOrdersModal();
+                  return;
+              }
+
+              let idx = 0;
+              function syncNext() {
+                  if (idx >= rows.length) {
+                      $btn.prop("disabled", false).removeClass("btn_disabled_sync");
+                      renderSyncPendingOrdersModal();
+                      toastr['success']("Sync all finished.", '');
+                      return;
+                  }
+                  let sales_id = rows[idx].sales_id;
+                  idx++;
+                  forceSyncSingleOrder(sales_id, function() {
+                      renderSyncPendingOrdersModal();
+                      setTimeout(syncNext, 300);
+                  });
+              }
+              syncNext();
+          });
+      });
+
+      $(document).on("click", ".sync_pending_row_btn", function (e) {
+          let $btn = $(this);
+          if ($btn.prop("disabled")) {
+              return;
+          }
+          let sales_id = $btn.data("sales_id");
+          $btn.prop("disabled", true).text("Syncing...");
+          forceSyncSingleOrder(sales_id, function() {
+              renderSyncPendingOrdersModal();
+          });
       });
 
       $(document).on("click", "#pull_others_device_orders", function (e) {

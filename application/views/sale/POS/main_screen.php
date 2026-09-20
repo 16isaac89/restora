@@ -3776,6 +3776,34 @@ foreach ($notifications as $single_notification){
     </div>
     <!-- end of notification list modal -->
 
+    <!-- Sync Pending Orders Modal: orders still waiting to reach the server, blocking their table's release -->
+    <div id="sync_pending_orders_modal" class="modal">
+        <div class="modal-content" id="modal_sync_pending_orders_details">
+            <h1 id="sync_pending_orders_modal_header">
+                <span><span id="sync_pending_orders_count">0</span> <?php echo lang('sales_currently_in_local'); ?></span>
+                <a href="javascript:void(0)" class="alertCloseIcon" id="sync_pending_orders_close"><i class="fal fa-times"></i></a>
+            </h1>
+            <div id="sync_pending_orders_list_header_holder">
+                <div class="single_row_notification_header fix ir_h25_bb1">
+                    <div class="fix single_notification"><strong>Orders waiting to sync</strong></div>
+                    <div class="fix single_serve_button">
+                        <button type="button" id="sync_pending_orders_sync_all" class="bg__green"><i class="fas fa-sync"></i> Sync All</button>
+                    </div>
+                </div>
+            </div>
+            <div id="sync_pending_orders_list_holder"></div>
+        </div>
+    </div>
+    <!-- end of sync pending orders modal -->
+    <style>
+        #sync_pending_orders_modal .sync_pending_row { align-items: center; padding: 8px 15px; }
+        #sync_pending_orders_modal .sync_pending_meta { font-size: 12px; color: #777; margin-top: 2px; }
+        #sync_pending_orders_modal .sync_pending_status { font-size: 12px; color: #d9534f; margin-top: 2px; }
+        #sync_pending_orders_modal .sync_pending_empty { padding: 20px 15px; text-align: center; color: #777; }
+        #sync_pending_orders_modal .sync_pending_row_btn { padding: 4px 12px; }
+        #sync_pending_orders_sync_all[disabled], .sync_pending_row_btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+        #sync_pending_orders_list_holder { max-height: 60vh; overflow-y: auto; }
+    </style>
 
     <!-- The Notification List Modal -->
     <div id="kitchen_bar_waiter_panel_button_modal" class="modal">
@@ -4763,7 +4791,7 @@ endif;
     /*This variable could not be escaped because this is building object*/
     window.kitchens = [<?php echo ($kitchens_objects);?>];
     </script>
-    <script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/pos_script_v7.3.js?v=7.6.20"></script>
+    <script type="text/javascript" src="<?php echo base_url(); ?>frequent_changing/js/pos_script_v7.3.js?v=7.6.21"></script>
     <script src="<?php echo base_url(); ?>assets/POS/js/media.js"></script>
     <script type="text/javascript" src="<?php echo base_url(); ?>assets/plugins/notify/jquery.notifyBar.js"></script>
     <script type="text/javascript">
