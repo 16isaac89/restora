@@ -15,6 +15,32 @@
   ###########################################################
  */
 class Report_model extends CI_Model {
+
+    /** Optional datetime range used by the Z report (Y-m-d H:i:s). When null, queries use the single date as before. */
+    public $z_from = null;
+    public $z_to = null;
+
+    public function setZRange($from, $to) {
+        $this->z_from = $from;
+        $this->z_to = $to;
+    }
+    public function clearZRange() {
+        $this->z_from = null;
+        $this->z_to = null;
+    }
+    /**
+     * Apply either the Z-report datetime range on $dateTimeCol, or the original single-date condition.
+     * $dateCol may be a raw expression (e.g. "DATE(refund_date_time)").
+     */
+    private function zWhere($dateCol, $date, $dateTimeCol) {
+        if ($this->z_from && $this->z_to) {
+            $this->db->where($dateTimeCol . ' >=', $this->z_from);
+            $this->db->where($dateTimeCol . ' <=', $this->z_to);
+        } else {
+            $this->db->where($dateCol, $date);
+        }
+    }
+
     /**
      * daily Summary Report
      * @access public
@@ -621,7 +647,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function totalTaxDiscountChargeTips($startDate = '',$outlet_id='') {
         $this->db->select('sum(vat) as total_tax,sum(total_discount_amount) as total_discount,sum(delivery_charge_actual_charge) as total_charge,sum(tips_amount_actual_charge) as total_tips');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startDate);
+        $this->zWhere('sale_date', $startDate, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('order_status', 3);
         $this->db->where('del_status', "Live");
@@ -632,7 +658,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function totalCharge($startDate = '',$outlet_id = '',$type = '') {
         $this->db->select('sum(delivery_charge_actual_charge) as total_charge');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startDate);
+        $this->zWhere('sale_date', $startDate, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('order_status', 3);
         $this->db->where('charge_type', $type);
@@ -1264,14 +1290,17 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
             $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sales_details.sales_id', 'left');
             $this->db->join('tbl_food_menus', 'tbl_food_menus.id = tbl_sales_details.food_menu_id', 'left');
 
-            if ($startMonth != '' && $endMonth != '') {
+            if ($this->z_from && $this->z_to) {
+                $this->db->where('tbl_sales.date_time >=', $this->z_from);
+                $this->db->where('tbl_sales.date_time <=', $this->z_to);
+            } elseif ($startMonth != '' && $endMonth != '') {
                 $this->db->where('sale_date>=', $startMonth);
                 $this->db->where('sale_date <=', $endMonth);
             }
-            if ($startMonth != '' && $endMonth == '') {
+            elseif ($startMonth != '' && $endMonth == '') {
                 $this->db->where('sale_date', $startMonth);
             }
-            if ($startMonth == '' && $endMonth != '') {
+            elseif ($startMonth == '' && $endMonth != '') {
                 $this->db->where('sale_date', $endMonth);
             }
             $this->db->where('tbl_sales_details.outlet_id', $outlet_id);
@@ -1288,14 +1317,17 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         if ($startMonth || $endMonth):
             $this->db->select('sum(total_refund) as total_refund');
             $this->db->from('tbl_sales');
-            if ($startMonth != '' && $endMonth != '') {
+            if ($this->z_from && $this->z_to) {
+                $this->db->where('refund_date_time >=', $this->z_from);
+                $this->db->where('refund_date_time <=', $this->z_to);
+            } elseif ($startMonth != '' && $endMonth != '') {
                 $this->db->where(("DATE(refund_date_time) >= '".$startMonth."'"));
                 $this->db->where(("DATE(refund_date_time) <= '".$endMonth."'"));
             }
-            if ($startMonth != '' && $endMonth == '') {
+            elseif ($startMonth != '' && $endMonth == '') {
                 $this->db->where(("DATE(refund_date_time) = '".$startMonth."'"));
             }
-            if ($startMonth == '' && $endMonth != '') {
+            elseif ($startMonth == '' && $endMonth != '') {
                 $this->db->where(("DATE(refund_date_time) = '".$endMonth."'"));
             }
             $this->db->where('outlet_id', $outlet_id);
@@ -1310,7 +1342,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(menu_price_without_discount) sub_total_foods,sale_date');
         $this->db->from('tbl_sales_details');
         $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sales_details.sales_id', 'left');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('tbl_sales_details.outlet_id', $outlet_id);
         $this->db->where('tbl_sales_details.del_status', 'Live');
         $this->db->where('tbl_sales.order_status', 3);
@@ -1322,7 +1354,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(modifier_price) sub_total_foods,sale_date');
         $this->db->from('tbl_sales_details_modifiers');
         $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sales_details_modifiers.sales_id', 'left');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('tbl_sales_details_modifiers.outlet_id', $outlet_id);
         $this->db->where('tbl_sales.order_status', 3);
         $query_result = $this->db->get();
@@ -1332,7 +1364,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function waiter_tips_foods($startMonth = '',$outlet_id='') {
         $this->db->select('sum(tips_amount_actual_charge) as tips_total');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('del_status', 'Live');
         $this->db->where('order_status', 3);
@@ -1343,7 +1375,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function taxes_foods($startMonth = '',$outlet_id='') {
         $this->db->select('sale_vat_objects');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('del_status', 'Live');
         $this->db->where('order_status', 3);
@@ -1364,7 +1396,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function delivery_charge_foods($startMonth = '',$outlet_id = '',$type = '') {
         $this->db->select('sum(delivery_charge_actual_charge) as delivery_charge');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('charge_type', $type);
         $this->db->where('del_status', 'Live');
@@ -1376,7 +1408,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function total_discount_amount_foods($startMonth = '',$outlet_id='') {
         $this->db->select('sum(total_discount_amount) as total_discount_amount_foods');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('del_status', 'Live');
         $this->db->where('order_status', 3);
@@ -1387,7 +1419,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     public function total_due_amount_foods($startMonth = '',$outlet_id='') {
         $this->db->select('sum(due_amount) as total_due_amount_foods');
         $this->db->from('tbl_sales');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('outlet_id', $outlet_id);
         $this->db->where('del_status', 'Live');
         $this->db->where('order_status', 3);
@@ -1399,7 +1431,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select("sum(amount) as total_amount");
         $this->db->from('tbl_customer_due_receives');
         $this->db->where("outlet_id", $outlet_id);
-        $this->db->where('only_date', $startMonth);
+        $this->zWhere('only_date', $startMonth, 'tbl_customer_due_receives.date');
         $this->db->where('del_status', 'Live');
         $data =  $this->db->get()->row();
         return (isset($data->total_amount) && $data->total_amount?$data->total_amount:0);
@@ -1425,7 +1457,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(paid) as total_amount,tbl_payment_methods.name,payment_id');
         $this->db->from('tbl_purchase');
         $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_purchase.payment_id', 'left');
-        $this->db->where('date', $startMonth);
+        $this->zWhere('tbl_purchase.date', $startMonth, 'tbl_purchase.added_date_time');
         $this->db->where('tbl_purchase.outlet_id', $outlet_id);
         $this->db->where('tbl_purchase.del_status', 'Live');
         $this->db->group_by('payment_id');
@@ -1437,7 +1469,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(amount) as total_amount,tbl_payment_methods.name,payment_id');
         $this->db->from('tbl_expenses');
         $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_expenses.payment_id', 'left');
-        $this->db->where('date', $startMonth);
+        $this->zWhere('tbl_expenses.date', $startMonth, 'tbl_expenses.added_date_time');
         $this->db->where('tbl_expenses.outlet_id', $outlet_id);
         $this->db->where('tbl_expenses.del_status', 'Live');
         $this->db->group_by('payment_id');
@@ -1449,7 +1481,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(amount) as total_amount,tbl_payment_methods.name,payment_id');
         $this->db->from('tbl_supplier_payments');
         $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_supplier_payments.payment_id', 'left');
-        $this->db->where('date', $startMonth);
+        $this->zWhere('tbl_supplier_payments.date', $startMonth, 'tbl_supplier_payments.added_date_time');
         $this->db->where('tbl_supplier_payments.outlet_id', $outlet_id);
         $this->db->where('tbl_supplier_payments.del_status', 'Live');
         $this->db->group_by('payment_id');
@@ -1461,7 +1493,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(amount) as total_amount,tbl_payment_methods.name,payment_id');
         $this->db->from('tbl_customer_due_receives');
         $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_customer_due_receives.payment_id', 'left');
-        $this->db->where('only_date', $startMonth);
+        $this->zWhere('only_date', $startMonth, 'tbl_customer_due_receives.date');
         $this->db->where('tbl_customer_due_receives.outlet_id', $outlet_id);
         $this->db->where('tbl_customer_due_receives.del_status', 'Live');
         $this->db->group_by('payment_id');
@@ -1473,7 +1505,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->select('sum(amount) as total_amount,multi_currency,payment_id');
         $this->db->from('tbl_sale_payments');
         $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sale_payments.sale_id', 'left');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('tbl_sale_payments.outlet_id', $outlet_id);
         $this->db->where('tbl_sale_payments.currency_type', 1);
         $this->db->where('tbl_sale_payments.del_status', 'Live');
@@ -1504,7 +1536,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sales_details_modifiers.sales_id', 'left');
         $this->db->join('tbl_sales_details', 'tbl_sales_details.id = tbl_sales_details_modifiers.sales_details_id', 'left');
         $this->db->join('tbl_modifiers', 'tbl_modifiers.id = tbl_sales_details_modifiers.modifier_id', 'left');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('tbl_sales_details_modifiers.outlet_id', $outlet_id);
         $this->db->where('tbl_sales.del_status', 'Live');
         $this->db->where('tbl_sales.order_status', 3);
@@ -2275,7 +2307,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->from('tbl_sale_payments');
         $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sale_payments.sale_id', 'left');
         $this->db->join('tbl_payment_methods', 'tbl_payment_methods.id = tbl_sale_payments.payment_id', 'left');
-        $this->db->where('sale_date', $startMonth);
+        $this->zWhere('sale_date', $startMonth, 'tbl_sales.date_time');
         $this->db->where('tbl_sale_payments.outlet_id', $outlet_id);
         $this->db->where('tbl_sale_payments.currency_type', null);
         $this->db->where('tbl_sale_payments.del_status', 'Live');
@@ -2292,7 +2324,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->from('tbl_sale_payments');
         $this->db->join('tbl_sales', 'tbl_sales.id = tbl_sale_payments.sale_id', 'left');
         $this->db->where("tbl_sale_payments.payment_id", $payment_id);
-        $this->db->where('sale_date', $date);
+        $this->zWhere('sale_date', $date, 'tbl_sales.date_time');
         $this->db->where('tbl_sale_payments.outlet_id', $outlet_id);
         $this->db->where('tbl_sale_payments.currency_type', null);
         $this->db->where('tbl_sale_payments.del_status', 'Live');
@@ -2309,7 +2341,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->from('tbl_sales');
         $this->db->where("refund_payment_id", $payment_id);
         $this->db->where("outlet_id", $outlet_id);
-        $this->db->where(("DATE(refund_date_time) = '".$date."'"));
+        $this->zWhere('DATE(refund_date_time)', $date, 'refund_date_time');
         $data =  $this->db->get()->row();
         return (isset($data->total_amount) && $data->total_amount?$data->total_amount:0);
     }
@@ -2334,7 +2366,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->from('tbl_purchase');
         $this->db->where("outlet_id", $outlet_id);
         $this->db->where("payment_id", $payment_id);
-        $this->db->where("Date(added_date_time)", $date);
+        $this->zWhere('DATE(added_date_time)', $date, 'added_date_time');
         $this->db->where('del_status','Live');
         $data =  $this->db->get()->row();
         return (isset($data->total_amount) && $data->total_amount?$data->total_amount:0);
@@ -2345,7 +2377,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->from('tbl_customer_due_receives');
         $this->db->where("outlet_id", $outlet_id);
         $this->db->where("payment_id", $payment_id);
-        $this->db->where("only_date", $date);
+        $this->zWhere('only_date', $date, 'date');
         $this->db->where('del_status','Live');
         $data =  $this->db->get()->row();
         return (isset($data->total_amount) && $data->total_amount?$data->total_amount:0);
@@ -2356,7 +2388,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
         $this->db->from('tbl_supplier_payments');
         $this->db->where("outlet_id", $outlet_id);
         $this->db->where("payment_id", $payment_id);
-        $this->db->where("date", $date);
+        $this->zWhere('date', $date, 'added_date_time');
         $this->db->where('del_status','Live');
         $data =  $this->db->get()->row();
         return (isset($data->total_amount) && $data->total_amount?$data->total_amount:0);
@@ -2365,7 +2397,7 @@ FROM tbl_food_menus_ingredients i  LEFT JOIN (select * from tbl_ingredients wher
     {
         $this->db->select("sum(amount) as total_amount");
         $this->db->from('tbl_expenses');
-        $this->db->where("date", $date);
+        $this->zWhere('date', $date, 'added_date_time');
         $this->db->where("outlet_id", $outlet_id);
         $this->db->where("payment_id", $payment_id);
         $this->db->where('del_status','Live');

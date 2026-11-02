@@ -4804,13 +4804,18 @@
         print("<pre>");
         print_r($arr);exit;
     }
-    function getAllSaleByPaymentMultiCurrencyRows($date,$payment_id,$outlet_id){
+    function getAllSaleByPaymentMultiCurrencyRows($date,$payment_id,$outlet_id,$from_datetime='',$to_datetime=''){
         $CI = & get_instance();
         $CI->db->select("sum(amount) as total_amount,multi_currency");
         $CI->db->from('tbl_sale_payments');
         $CI->db->where("payment_id", $payment_id);
         $CI->db->where("outlet_id", $outlet_id);
-        $CI->db->where("Date(date_time)", $date);
+        if($from_datetime && $to_datetime){
+            $CI->db->where("date_time >=", $from_datetime);
+            $CI->db->where("date_time <=", $to_datetime);
+        }else{
+            $CI->db->where("Date(date_time)", $date);
+        }
         $CI->db->where("currency_type", 1);
         $CI->db->group_by('multi_currency');
         $data =  $CI->db->get()->result();

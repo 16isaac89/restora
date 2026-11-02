@@ -5,17 +5,24 @@
 
     <section class="content-header">
         <h2 class="top-left-header text-left"><?php echo lang('z_report'); ?></h2>
-        <input type="hidden" class="datatable_name" data-title="<?php echo lang('z_report'); ?>_<?php echo escape_output($this->session->userdata('outlet_name')); ?>_<?php echo escape_output($selectedDate); ?>" data-id_name="datatable">
+        <input type="hidden" class="datatable_name" data-title="<?php echo lang('z_report'); ?>_<?php echo escape_output($this->session->userdata('outlet_name')); ?>_<?php echo escape_output(date('Y-m-d_Hi', strtotime($from_datetime)).'_to_'.date('Y-m-d_Hi', strtotime($to_datetime))); ?>" data-id_name="datatable">
     </section>
 
     <div class="box-wrapper">
+        <?php echo form_open(base_url() . 'Report/zReport') ?>
         <div class="row my-3">
             <div class="col-sm-12 mb-2 col-md-3">
-                <?php echo form_open(base_url() . 'Report/zReport')
-                ?>
                 <div class="form-group">
-                    <input tabindex="1" type="text" id="date" name="date" readonly class="form-control"
-                           placeholder="<?php echo lang('date'); ?>" value="<?php echo escape_output($selectedDate); ?>">
+                    <label for="from_datetime">From</label>
+                    <input tabindex="1" type="datetime-local" id="from_datetime" name="from_datetime" class="form-control" required
+                           value="<?php echo escape_output(date('Y-m-d\TH:i', strtotime($from_datetime))); ?>">
+                </div>
+            </div>
+            <div class="col-sm-12 mb-2 col-md-3">
+                <div class="form-group">
+                    <label for="to_datetime">To</label>
+                    <input tabindex="1" type="datetime-local" id="to_datetime" name="to_datetime" class="form-control" required
+                           value="<?php echo escape_output(date('Y-m-d\TH:i', strtotime($to_datetime))); ?>">
                 </div>
             </div>
             <?php
@@ -40,18 +47,20 @@
             ?>
             <div class="col-sm-12 mb-2 col-md-2">
                 <div class="form-group">
+                    <label class="d-block">&nbsp;</label>
                     <button type="submit" name="submit" value="submit"
                             class="w-100 btn bg-blue-btn"><?php echo lang('submit'); ?></button>
                 </div>
             </div>
         </div>
+        <?php echo form_close(); ?>
 
         <div class="table-box">
 
             <!-- /.box-header -->
             <div class="table-responsive">
                 <h2 class="ir_txt_center txt-color-grey"><?php echo lang('z_report'); ?></h2>
-                <h3 class="txt-color-grey"><?= isset($selectedDate) && $selectedDate ? lang('date').": " . date($this->session->userdata('date_format'), strtotime($selectedDate)) : '' ?>
+                <h3 class="txt-color-grey"><?php $period_fmt = $this->session->userdata('date_format').' H:i'; echo 'Period'.": " . date($period_fmt, strtotime($from_datetime)) . ' - ' . date($period_fmt, strtotime($to_datetime)); ?>
                 </h3>
                 <?php $total_amount = 0;
                 $tax_type = $this->session->userdata("tax_type");
@@ -64,7 +73,7 @@
                         <th class="ir_w2_txt_center"></th>
                         <th class="ir_w_31"><h4 class="pull-left"><?php echo lang('z_report'); ?></h4></th>
                         <th class="ir_w_35"><h3 class="pull-left"><?php echo escape_output($this->session->userdata('outlet_name')); ?></h3></th>
-                        <th class="ir_w_31"><h4 class="pull-left"><?= isset($selectedDate) && $selectedDate ? lang('date').": " . date($this->session->userdata('date_format'), strtotime($selectedDate)) : '' ?></h4></th>
+                        <th class="ir_w_31"><h4 class="pull-left"><?php $period_fmt = $this->session->userdata('date_format').' H:i'; echo 'Period'.": " . date($period_fmt, strtotime($from_datetime)) . ' - ' . date($period_fmt, strtotime($to_datetime)); ?></h4></th>
                     </tr>
                     </thead>
                     <tbody>
@@ -444,7 +453,7 @@
                         </tr>';
                                     if($value->id==1):
                                         $outlet_id = $this->session->userdata('outlet_id');
-                                        $total_sale_mul_c_rows =  getAllSaleByPaymentMultiCurrencyRows($selectedDate,$value->id,$outlet_id);
+                                        $total_sale_mul_c_rows =  getAllSaleByPaymentMultiCurrencyRows($selectedDate,$value->id,$outlet_id,$from_datetime,$to_datetime);
                                         if($total_sale_mul_c_rows){
                                             foreach ($total_sale_mul_c_rows as $value1):
                                                 $html_content .= '<tr>

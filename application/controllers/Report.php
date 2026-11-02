@@ -203,8 +203,18 @@ class Report extends Cl_Controller {
             $outlet_id = $this->session->userdata('outlet_id');
         }
         $data['outlet_id'] = $outlet_id;
-        $selected_submit_post = $this->input->post('date');
-        $selectedDate = (isset($selected_submit_post) && $selected_submit_post?$selected_submit_post:date("Y-m-d"));
+        // Date-time range (from / to). Defaults to today 00:00 - 23:59.
+        $from_post = $this->input->post('from_datetime');
+        $to_post   = $this->input->post('to_datetime');
+        $from_ts = $from_post && strtotime($from_post) ? strtotime($from_post) : strtotime(date('Y-m-d 00:00:00'));
+        $to_ts   = $to_post && strtotime($to_post) ? strtotime($to_post) : strtotime(date('Y-m-d 23:59:59'));
+        if ($from_ts > $to_ts) { $tmp = $from_ts; $from_ts = $to_ts; $to_ts = $tmp; }
+        $from_datetime = date('Y-m-d H:i:00', $from_ts);
+        $to_datetime   = date('Y-m-d H:i:59', $to_ts);
+        $this->Report_model->setZRange($from_datetime, $to_datetime);
+        $data['from_datetime'] = $from_datetime;
+        $data['to_datetime'] = $to_datetime;
+        $selectedDate = date('Y-m-d', $from_ts);
         $data['sub_total_foods'] = $this->Report_model->sub_total_foods($selectedDate,$outlet_id);
         $data['sub_total_modifiers'] = $this->Report_model->sub_total_modifiers($selectedDate,$outlet_id);
         $data['totalDueReceived'] = $this->Report_model->totalDueReceived($selectedDate,$outlet_id);
@@ -248,6 +258,7 @@ class Report extends Cl_Controller {
         $data['total_payments'] = $array_p_name;
         $data['selectedDate'] = $selectedDate;
         $data['main_content'] = $this->load->view('report/zReport', $data, TRUE);
+        $this->Report_model->clearZRange();
         $this->load->view('userHome', $data);
     }
     /**
